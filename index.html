@@ -2840,37 +2840,46 @@ input:checked + .slider:before { transform: translateX(20px); }
     cursor: grabbing !important;
 }
 
-/* 社区卡片：左右分栏，每栏两行 */
+/* 社区卡片：缩短高度，增加序号对齐 */
 .comm-card {
     display: flex;
-    justify-content: space-between; /* 左右拉开 */
-    align-items: stretch;
-    padding: 10px 12px !important;
+    align-items: center; /* 垂直居中 */
+    padding: 6px 12px !important; /* 核心：减小上下 padding，让按钮变矮 */
     background: #fff !important;
     border: 1px solid #eee !important;
-    border-radius: 8px !important;
-    margin-bottom: 10px !important;
+    border-radius: 6px !important;
+    margin-bottom: 6px !important; /* 减小卡片之间的间距 */
+    transition: all 0.2s;
 }
 
-/* 左侧容器 */
+/* 序号样式 */
+.comm-index {
+    font-family: "Monaco", monospace;
+    font-size: 14px;
+    font-weight: bold;
+    color: #ddd;
+    margin-right: 12px;
+    width: 20px; /* 保证两位数序号对齐 */
+}
+
+/* 左侧容器：名称+网站 */
 .comm-col-left {
     flex: 1;
     display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 4px;
+    flex-direction: column; /* 上下排布 */
+    gap: 2px;
     overflow: hidden;
 }
 
-/* 右侧容器 */
+/* 右侧容器：用户名+点赞 */
 .comm-col-right {
     display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    align-items: flex-end; /* 右对齐 */
-    min-width: 90px;
+    flex-direction: column; /* 上下排布 */
+    align-items: flex-end; /* 靠右对齐 */
+    gap: 4px;
+    min-width: 80px;
+    border-left: 1px dashed #f0f0f0;
     padding-left: 10px;
-    border-left: 1px dashed #eee;
 }
 
 .comm-link { font-size: 14px !important; font-weight: bold !important; color: #333; cursor: pointer; }
@@ -7127,7 +7136,6 @@ function initMouseZone() {
 
         window.closeCommDrawer = () => document.getElementById('commDrawer').classList.remove('active');
 
-// --- 核心修复：加载社区列表 (去掉了用户名，确保稳定加载) ---
 async function loadCommList() {
     const list = document.getElementById('commList');
     if (!list) return;
@@ -7136,7 +7144,7 @@ async function loadCommList() {
     try {
         const query = new AV.Query('CommunitySite');
         
-        // 分类与标签筛选
+        // 筛选逻辑
         if (commState.isMine) {
             const currentUser = AV.User.current();
             if(!currentUser) {
@@ -7149,57 +7157,66 @@ async function loadCommList() {
             if(commState.activeTag) query.equalTo('tag', commState.activeTag);
         }
         
-        // 排序逻辑
-        if (commState.sort === 'hot') query.addDescending('upVotes');
-        else query.addDescending('createdAt');
+        // --- 核心修改：按点赞数量排序 & 限制 99 个 ---
+        query.addDescending('upVotes'); // 点赞数最高排第一
+        query.addDescending('createdAt'); // 如果点赞数相同，按时间排
+        query.limit(99); 
 
-        const results = await query.limit(50).find();
+        const results = await query.find();
 
         if(results.length === 0) { 
-            list.innerHTML = '<div style="text-align:center;padding:40px;opacity:0.5;">暂无资源，去发布一个吧！</div>'; 
+            list.innerHTML = '<div style="text-align:center;padding:40px;opacity:0.5;">暂无资源</div>'; 
             return; 
         }
 
         const currentUserId = AV.User.current() ? AV.User.current().id : null;
 
-        list.innerHTML = results.map(item => {
+        list.innerHTML = results.map((item, index) => {
             const title = item.get('title') || '无标题';
             const url = item.get('url') || '#';
             const up = item.get('upVotes') || 0;
             const down = item.get('downVotes') || 0;
             const isOwner = currentUserId && item.get('owner') && item.get('owner').id === currentUserId;
 
+            // 生成两位数序号 (01, 02, ..., 99)
+            const serialNumber = String(index + 1).padStart(2, '0');
+
             return `
-            <div class="comm-card" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #f5f5f5; background: #fff; margin-bottom: 8px; border-radius: 8px;">
-                <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; overflow: hidden;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <span style="font-weight: bold; font-size: 14px; color: #333; cursor: pointer;" onclick="window.open('${url}', '_blank')">
+            <div class="comm-card" style="display: flex; align-items: center; padding: 8px 12px; border-bottom: 1px solid #f5f5f5; background: #fff; margin-bottom: 6px; border-radius: 6px;">
+                <div style="font-family: monospace; font-size: 14px; color: #ccc; margin-right: 12px; font-weight: bold;">
+                    ${serialNumber}
+                </div>
+
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; overflow: hidden;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="font-weight: 500; font-size: 13px; color: #333; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px;" 
+                              onclick="window.open('${url}', '_blank')">
                             ${title}
                         </span>
-                        <i class="far fa-copy" style="font-size: 12px; color: var(--primary-color); cursor: pointer;" 
+                        <i class="far fa-copy" style="font-size: 11px; color: #bbb; cursor: pointer;" 
                            onclick="event.stopPropagation(); window.copyForImport('${title}', '${url}')"></i>
                     </div>
-                    <div style="font-size: 11px; color: #aaa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px;">
+                    <div style="font-size: 10px; color: #bbb; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px;">
                         ${url.replace(/^https?:\/\//, '')}
                     </div>
                 </div>
 
-                <div style="display: flex; align-items: center; gap: 12px; min-width: 80px; justify-content: flex-end;">
-                    <div style="display: flex; gap: 10px; font-size: 13px; color: #ccc;">
-                        <span onclick="event.stopPropagation(); handleVote('${item.id}', 'up')" style="cursor:pointer; display: flex; align-items: center; gap: 3px;">
+                <div style="display: flex; align-items: center; gap: 8px; border-left: 1px solid #f0f0f0; padding-left: 10px; margin-left: 5px;">
+                    <div style="display: flex; gap: 8px; font-size: 12px; color: #ccc;">
+                        <span onclick="event.stopPropagation(); handleVote('${item.id}', 'up')" style="cursor:pointer; display: flex; align-items: center; gap: 2px;">
                             <i class="far fa-thumbs-up"></i> <small>${up}</small>
                         </span>
-                        <span onclick="event.stopPropagation(); handleVote('${item.id}', 'down')" style="cursor:pointer; display: flex; align-items: center; gap: 3px;">
+                        <span onclick="event.stopPropagation(); handleVote('${item.id}', 'down')" style="cursor:pointer; display: flex; align-items: center; gap: 2px;">
                             <i class="far fa-thumbs-down"></i> <small>${down}</small>
                         </span>
                     </div>
-                    ${isOwner ? `<i class="fas fa-trash-alt" style="color:#ff4d4f; cursor:pointer; font-size:12px;" onclick="event.stopPropagation(); commDel('${item.id}')"></i>` : ''}
+                    ${isOwner ? `<i class="fas fa-trash-alt" style="color:#ffb3b3; cursor:pointer; font-size:11px;" onclick="event.stopPropagation(); commDel('${item.id}')"></i>` : ''}
                 </div>
             </div>`;
         }).join('');
     } catch(e) { 
-        console.error("加载失败原因:", e); 
-        list.innerHTML = '<div style="text-align:center;padding:20px;color:red;font-size:12px;">加载失败，请刷新重试</div>'; 
+        console.error("加载失败:", e); 
+        list.innerHTML = '<div style="text-align:center;padding:20px;color:red;font-size:12px;">加载失败</div>'; 
     }
 }
 
@@ -7465,8 +7482,8 @@ window.copyForImport = function(name, url) {
     else alert('已成功复制：' + name);
 };
 
-// 2. 导入：一次性填入名称和网站
 window.importFromComm = function() {
+    // 1. 获取我们之前在社区点“复制”时存下的数据
     const raw = localStorage.getItem('temp_site_data');
     if (!raw) {
         alert('请先在社区点击复制图标');
@@ -7474,19 +7491,55 @@ window.importFromComm = function() {
     }
     const data = JSON.parse(raw);
     
-    // 【关键】请确保你弹窗里的输入框 ID 是下面这两个，如果不是请修改 ID
-    const nameInp = document.getElementById('editTitle'); 
-    const urlInp = document.getElementById('editUrl');
+    // 2. 这里的名字必须和 HTML 里的 id 完全一样
+    const nameInput = document.getElementById('editBookmarkName'); 
+    const urlInput = document.getElementById('editBookmarkUrl');
     
-    if (nameInp && urlInp) {
-        nameInp.value = data.name;
-        urlInp.value = data.url;
-        if(typeof showToast === 'function') showToast('导入成功');
+    if (nameInput && urlInput) {
+        // 3. 把名字和网址填进去
+        nameInput.value = data.name; 
+        urlInput.value = data.url;
+        showToast('导入成功');
     } else {
-        alert('导入失败：未找到对应的输入框，请检查 ID');
+        alert('导入失败：找不到输入框，请检查 HTML 里的 id');
     }
 };
 
+// --- 核心修复：点赞点踩逻辑 ---
+async function handleVote(id, type) {
+    // 1. 登录校验
+    const currentUser = AV.User.current();
+    if (!currentUser) {
+        if (typeof showToast === 'function') showToast('请先登录后再操作');
+        else alert('请先登录后再点赞/点踩');
+        return;
+    }
+
+    try {
+        const item = AV.Object.createWithoutData('CommunitySite', id);
+        // 使用 LeanCloud 的原子增加操作，防止并发数据错误
+        if (type === 'up') {
+            item.increment('upVotes', 1);
+        } else {
+            item.increment('downVotes', 1);
+        }
+        
+        await item.save();
+        
+        // 实时反馈：更新当前页面的数字（无需重新加载整个列表）
+        const countEl = event.target.closest('span').querySelector('small');
+        if (countEl) {
+            countEl.innerText = parseInt(countEl.innerText) + 1;
+            event.target.style.color = type === 'up' ? '#2ecc71' : '#e74c3c';
+        }
+        
+        if (typeof showToast === 'function') showToast('投票成功');
+    } catch (e) {
+        console.error("投票失败:", e);
+        if (typeof showToast === 'function') showToast('操作失败，请重试');
+    }
+}
+        
         initApp();
     </script>
 </body>
