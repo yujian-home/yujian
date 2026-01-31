@@ -7160,10 +7160,13 @@ function initMouseZone() {
 
                 const currentUser = AV.User.current();
                 
-                list.innerHTML = displayData.map(item => {
-                    const isOwner = currentUser && item.owner && item.owner.id === currentUser.id;
-                    const userName = item.owner && item.owner.attributes ? item.owner.attributes.username : '匿名';
-                    const action = userActions[item.id]; // 获取当前用户的点赞状态
+                list.innerHTML = data.map(item => {
+        // 安全取值：防止因为数据库字段缺失导致加载失败
+        const title = item.get('title') || '无标题';
+        const url = item.get('url') || '#';
+        const author = item.get('username') || item.get('author') || '匿名';
+        const up = item.get('upVotes') || 0;
+        const down = item.get('downVotes') || 0;userActions[item.id]; // 获取当前用户的点赞状态
 
 return `
 <div class="comm-card" style="display: flex; justify-content: space-between; align-items: stretch; padding: 12px; border-bottom: 1px solid #f0f0f0; background: #fff;">
