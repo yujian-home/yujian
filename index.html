@@ -2840,6 +2840,63 @@ input:checked + .slider:before { transform: translateX(20px); }
     cursor: grabbing !important;
 }
 
+/* 社区卡片：两行紧凑布局 */
+.comm-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px !important;
+    background: #fdfdfd !important;
+}
+
+.comm-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+/* 第一行：标题 + 复制按钮 */
+.comm-line-1 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.comm-link { font-size: 14px !important; margin: 0 !important; font-weight: 600; color: #333; }
+.copy-btn { font-size: 12px; color: var(--primary-color); cursor: pointer; opacity: 0.6; transition: 0.2s; }
+.copy-btn:hover { opacity: 1; }
+
+/* 第二行：链接 + 点赞点踩 */
+.comm-line-2 {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+.comm-url-text { font-size: 11px; color: #999; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.vote-box { display: flex; gap: 10px; font-size: 12px; color: #bbb; }
+.vote-btn { cursor: pointer; transition: 0.2s; }
+.vote-btn:hover { color: var(--primary-color); }
+.vote-btn.up:hover { color: #2ecc71; }
+.vote-btn.down:hover { color: #e74c3c; }
+
+/* 右侧用户名 */
+.comm-user-tag {
+    font-size: 11px;
+    color: #bbb;
+    background: #f5f5f5;
+    padding: 2px 6px;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+/* 编辑弹窗：导入按钮样式 */
+.import-btn {
+    background: #f0f0f0 !important;
+    color: #666 !important;
+    margin-right: auto; /* 靠左对齐 */
+}
+
     </style>
 </head>
 <body>
@@ -3106,6 +3163,9 @@ input:checked + .slider:before { transform: translateX(20px); }
                     <button type="button" class="btn" id="deleteBookmarkBtn" style="background: #ff4757; color: white; display: none;">
                         <i class="fas fa-trash-alt"></i> 删除此网站
                     </button>
+<div style="display: flex; width: 100%; gap: 10px;">
+    <button class="import-btn" onclick="importCopiedSite()" title="导入社区复制的内容">
+        <i class="fas fa-file-import"></i> 导入复制
                     
                     <div style="display: flex; gap: 10px;">
                         <button type="button" class="btn btn-secondary" id="cancelEditBtn">取消</button>
@@ -7106,16 +7166,22 @@ function initMouseZone() {
                     const action = userActions[item.id]; // 获取当前用户的点赞状态
 
                     return `
-                    <div class="comm-card" onclick="window.open('${item.url}', '_blank')">
-                        <div class="comm-info">
-                            <div class="comm-link">${item.title}</div>
-                            <div class="comm-meta">
-                                <span style="background:#eee;padding:2px 6px;border-radius:4px">${item.tag}</span> 
-                                · @${userName}
-                            </div>
-                            <div class="comm-desc" style="font-size:12px;color:#666;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-                                ${item.desc || '暂无简介'}
-                            </div>
+<div class="comm-card">
+    <div class="comm-info">
+        <div class="comm-line-1">
+            <a href="${item.url}" target="_blank" class="comm-link">${item.name}</a>
+            <i class="far fa-copy copy-btn" title="复制网站信息" onclick="copySiteData('${item.name}', '${item.url}')"></i>
+        </div>
+        <div class="comm-line-2">
+            <span class="comm-url-text">${item.url}</span>
+            <div class="vote-box">
+                <i class="far fa-thumbs-up vote-btn up" onclick="handleVote('${item.id}', 'up')"></i>
+                <i class="far fa-thumbs-down vote-btn down" onclick="handleVote('${item.id}', 'down')"></i>
+            </div>
+        </div>
+    </div>
+    <div class="comm-user-tag"><i class="far fa-user"></i> ${item.username || '匿名'}</div>
+</div>
                         </div>
                         
                         <div class="comm-actions" onclick="event.stopPropagation()">
@@ -7379,6 +7445,35 @@ function initLinkSortable() {
         sortableInstances.push(ins);
     });
 }
+
+// 1. 复制网站数据到本地缓存
+window.copySiteData = function(name, url) {
+    const data = JSON.stringify({ name, url });
+    localStorage.setItem('temp_copied_site', data);
+    
+    // 同时复制链接到剪贴板
+    navigator.clipboard.writeText(url).then(() => {
+        showToast('已复制：' + name);
+    });
+};
+
+// 2. 导入已复制的网站到编辑框
+window.importCopiedSite = function() {
+    const rawData = localStorage.getItem('temp_copied_site');
+    if (!rawData) {
+        showToast('请先在社区点击复制按钮');
+        return;
+    }
+    const data = JSON.parse(rawData);
+    const titleInput = document.getElementById('editTitle');
+    const urlInput = document.getElementById('editUrl');
+    
+    if (titleInput && urlInput) {
+        titleInput.value = data.name;
+        urlInput.value = data.url;
+        showToast('导入成功');
+    }
+};
 
         initApp();
     </script>
