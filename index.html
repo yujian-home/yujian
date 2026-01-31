@@ -11,6 +11,8 @@
     
   <script src="https://code.bdstatic.com/npm/leancloud-storage@4.12.0/dist/av-min.js"></script>
 
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+
     <style>
             :root {
             /* === 修改：默认直接使用 Skin 6 (复古艺术) 的配色 === */
@@ -2821,6 +2823,19 @@ body.fab-hidden-mode #settingsBtn:not(.menu-open) {
             background: #ff6b81 !important;
         }
 
+/* 拖拽时的影子效果：变淡并带虚线框 */
+.sortable-ghost {
+    opacity: 0.2 !important;
+    background: var(--primary-color) !important;
+    outline: 2px dashed var(--primary-color);
+    border-radius: 12px;
+}
+
+/* 正在被抓起的那个元素 */
+.sortable-chosen {
+    cursor: grabbing !important;
+}
+
     </style>
 </head>
 <body>
@@ -5325,8 +5340,10 @@ body.fab-hidden-mode #settingsBtn:not(.menu-open) {
             });
         }
 
-        // 渲染书签 - 修复：字体粗细调整
+// 渲染书签 - 最终修复版 (解决逻辑错位与显示问题)
         function renderBookmarks() {
+            // 1. 基础检查
+            if (!elements.bookmarksContainer) return;
             elements.bookmarksContainer.innerHTML = '';
             
             const sortedCategories = [...state.categories].sort((a, b) => a.order - b.order);
@@ -5336,6 +5353,7 @@ body.fab-hidden-mode #settingsBtn:not(.menu-open) {
                 section.className = 'bookmarks-section';
                 section.id = `category-${category.id}`;
                 
+                // 控制当前分类显示/隐藏
                 if (category.id === state.currentCategory) {
                     section.classList.add('active');
                     section.style.display = 'block';
@@ -5344,8 +5362,9 @@ body.fab-hidden-mode #settingsBtn:not(.menu-open) {
                 }
                 
                 const grid = document.createElement('div');
-                grid.className = 'bookmarks-grid';
+                grid.className = 'bookmarks-grid'; 
                 
+                // A. 渲染该分类下的书签
                 const categoryBookmarks = state.bookmarks
                     .filter(bookmark => bookmark.categoryId === category.id)
                     .sort((a, b) => a.order - b.order);
@@ -5355,6 +5374,7 @@ body.fab-hidden-mode #settingsBtn:not(.menu-open) {
                     grid.appendChild(bookmarkElement);
                 });
                 
+                // B. 渲染空位 (补齐行数)
                 const rows = state.settings.rowsPerCategory || 4;
                 const totalSlots = rows * 6;
                 const emptySlots = totalSlots - categoryBookmarks.length;
@@ -5375,32 +5395,36 @@ body.fab-hidden-mode #settingsBtn:not(.menu-open) {
                     grid.appendChild(emptySlot);
                 }
                 
+                // C. 编辑模式下的按钮
                 if (state.editMode) {
                     const addRowBtn = document.createElement('button');
                     addRowBtn.className = 'add-row-btn';
                     addRowBtn.innerHTML = '<i class="fas fa-plus-circle"></i> 增加一行';
-                    addRowBtn.addEventListener('click', () => {
-                        changeRowsPerCategory('add');
-                    });
+                    addRowBtn.addEventListener('click', () => changeRowsPerCategory('add'));
                     grid.appendChild(addRowBtn);
                     
-                    // 【修复1：删除行功能 - 只显示删除按钮当行数大于1时】
                     const currentRows = state.settings.rowsPerCategory || 4;
                     if (currentRows > 1) {
                         const removeRowBtn = document.createElement('button');
                         removeRowBtn.className = 'remove-row-btn';
                         removeRowBtn.innerHTML = '<i class="fas fa-minus-circle"></i> 减少一行';
-                        removeRowBtn.addEventListener('click', () => {
-                            changeRowsPerCategory('remove');
-                        });
+                        removeRowBtn.addEventListener('click', () => changeRowsPerCategory('remove'));
                         grid.appendChild(removeRowBtn);
                     }
                 }
                 
-                section.appendChild(grid);
+                // --- 核心修复：确保这两行在 forEach 循环内，且在函数大括号内 ---
+                section.appendChild(grid); 
                 elements.bookmarksContainer.appendChild(section);
-            });
-        }
+            }); // 这里闭合 forEach
+
+            // 2. 核心补全：全部渲染完成后激活拖拽
+            if (typeof initLinkSortable === 'function') {
+                setTimeout(initLinkSortable, 100); 
+            }
+        } // 这里才闭合 renderBookmarks 函数
+        
+    
 
         function createBookmarkElement(bookmark) {
             try {
@@ -7384,6 +7408,31 @@ if (typeof renderCommUI !== 'function') {
             ).join('');
         }
     };
+}
+
+let sortableInstances = [];
+
+function initLinkSortable() {
+    // 销毁旧实例，防止内存堆积
+    sortableInstances.forEach(ins => ins.destroy());
+    sortableInstances = [];
+
+    // 只有编辑模式开启才允许拖拽
+    if (!state.editMode) return;
+
+    // 找到所有网格容器
+    const containers = document.querySelectorAll('.bookmarks-grid');
+    containers.forEach(container => {
+        const ins = new Sortable(container, {
+            animation: 250, // 腾出空位的动画时间
+            ghostClass: 'sortable-ghost', // 拖拽时的占位阴影
+            filter: '.empty-slot, .add-row-btn, .remove-row-btn', // 这些元素不能被拖动
+            onEnd: function() {
+                console.log('拖拽排序完成，请点击右下角勾号保存');
+            }
+        });
+        sortableInstances.push(ins);
+    });
 }
 
         initApp();
