@@ -7166,24 +7166,30 @@ function initMouseZone() {
                     const action = userActions[item.id]; // 获取当前用户的点赞状态
 
 return `
-<div class="comm-card">
-    <div class="comm-col-left">
-        <div style="display: flex; align-items: center;">
-            <span class="comm-link" onclick="window.open('${item.url}', '_blank')">${item.title}</span>
-            <i class="far fa-copy copy-icon" title="复制并准备导入" 
-               onclick="event.stopPropagation(); copyForImport('${item.title}', '${item.url}')"></i>
+<div class="comm-card" style="display: flex; justify-content: space-between; align-items: stretch; padding: 12px; border-bottom: 1px solid #f0f0f0; background: #fff;">
+    <div style="display: flex; flex-direction: column; justify-content: center; gap: 4px; flex: 1; overflow: hidden;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-weight: bold; font-size: 14px; color: #333; cursor: pointer;" onclick="window.open('${item.get('url')}', '_blank')">
+                ${item.get('title')}
+            </span>
+            <i class="far fa-copy" style="font-size: 12px; color: var(--primary-color); cursor: pointer;" 
+               onclick="event.stopPropagation(); window.copyForImport('${item.get('title')}', '${item.get('url')}')"></i>
         </div>
-        <div class="comm-url-text">${item.url.replace(/^https?:\/\//, '')}</div>
+        <div style="font-size: 11px; color: #aaa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px;">
+            ${item.get('url').replace(/^https?:\/\//, '')}
+        </div>
     </div>
 
-    <div class="comm-col-right">
-        <div class="comm-user-tag">@${userName}</div>
-        <div class="comm-votes">
-            <span class="vote-btn" onclick="event.stopPropagation(); handleVote('${item.id}', 'up')">
-                <i class="far fa-thumbs-up"></i> <small>${item.upVotes || 0}</small>
+    <div style="display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end; min-width: 90px;">
+        <div style="font-size: 11px; color: #888; background: #f5f5f5; padding: 2px 6px; border-radius: 4px;">
+            @${item.get('username') || item.get('author') || '匿名用户'}
+        </div>
+        <div style="display: flex; gap: 12px; font-size: 13px; color: #ccc;">
+            <span onclick="event.stopPropagation(); handleVote('${item.id}', 'up')" style="cursor:pointer; display: flex; align-items: center; gap: 3px;">
+                <i class="far fa-thumbs-up"></i> <small>${item.get('upVotes') || 0}</small>
             </span>
-            <span class="vote-btn" onclick="event.stopPropagation(); handleVote('${item.id}', 'down')">
-                <i class="far fa-thumbs-down"></i> <small>${item.downVotes || 0}</small>
+            <span onclick="event.stopPropagation(); handleVote('${item.id}', 'down')" style="cursor:pointer; display: flex; align-items: center; gap: 3px;">
+                <i class="far fa-thumbs-down"></i> <small>${item.get('downVotes') || 0}</small>
             </span>
         </div>
                         </div>
@@ -7450,35 +7456,40 @@ function initLinkSortable() {
     });
 }
 
-// 1. 社区点击复制：将数据存入“中转站”
+// 1. 复制：名称和网站一起记住
 window.copyForImport = function(name, url) {
-    const data = { name, url };
-    localStorage.setItem('comm_copy_data', JSON.stringify(data));
+    const data = { name: name, url: url };
+    localStorage.setItem('temp_site_data', JSON.stringify(data));
     
-    // 同时写入剪贴板（物理复制网址）
-    navigator.clipboard.writeText(url);
-    showToast('已复制网站信息，可在编辑框导入');
+    // 物理复制网址到剪贴板
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(url);
+    }
+    
+    // 提示信息（假设你有 showToast 函数）
+    if(typeof showToast === 'function') showToast('已成功复制网站信息');
+    else alert('已成功复制：' + name);
 };
 
-// 2. 编辑弹窗点击导入：从“中转站”取出数据并填表
+// 2. 导入：一次性填入名称和网站
 window.importFromComm = function() {
-    const raw = localStorage.getItem('comm_copy_data');
+    const raw = localStorage.getItem('temp_site_data');
     if (!raw) {
-        showToast('请先在社区点击复制按钮');
+        alert('请先在社区点击复制图标');
         return;
     }
     const data = JSON.parse(raw);
     
-    // 自动填写弹窗里的输入框
+    // 【关键】请确保你弹窗里的输入框 ID 是下面这两个，如果不是请修改 ID
     const nameInp = document.getElementById('editTitle'); 
     const urlInp = document.getElementById('editUrl');
     
     if (nameInp && urlInp) {
         nameInp.value = data.name;
         urlInp.value = data.url;
-        showToast('导入成功');
+        if(typeof showToast === 'function') showToast('导入成功');
     } else {
-        showToast('未找到输入框，请检查ID');
+        alert('导入失败：未找到对应的输入框，请检查 ID');
     }
 };
 
