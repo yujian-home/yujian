@@ -2840,61 +2840,56 @@ input:checked + .slider:before { transform: translateX(20px); }
     cursor: grabbing !important;
 }
 
-/* 社区卡片：两行紧凑布局 */
+/* 社区卡片：左右分栏，每栏两行 */
 .comm-card {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 15px !important;
-    background: #fdfdfd !important;
+    justify-content: space-between; /* 左右拉开 */
+    align-items: stretch;
+    padding: 10px 12px !important;
+    background: #fff !important;
+    border: 1px solid #eee !important;
+    border-radius: 8px !important;
+    margin-bottom: 10px !important;
 }
 
-.comm-info {
+/* 左侧容器 */
+.comm-col-left {
     flex: 1;
     display: flex;
     flex-direction: column;
+    justify-content: center;
     gap: 4px;
+    overflow: hidden;
 }
 
-/* 第一行：标题 + 复制按钮 */
-.comm-line-1 {
+/* 右侧容器 */
+.comm-col-right {
     display: flex;
-    align-items: center;
-    gap: 8px;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: flex-end; /* 右对齐 */
+    min-width: 90px;
+    padding-left: 10px;
+    border-left: 1px dashed #eee;
 }
-.comm-link { font-size: 14px !important; margin: 0 !important; font-weight: 600; color: #333; }
-.copy-btn { font-size: 12px; color: var(--primary-color); cursor: pointer; opacity: 0.6; transition: 0.2s; }
-.copy-btn:hover { opacity: 1; }
 
-/* 第二行：链接 + 点赞点踩 */
-.comm-line-2 {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-}
-.comm-url-text { font-size: 11px; color: #999; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.comm-link { font-size: 14px !important; font-weight: bold !important; color: #333; cursor: pointer; }
+.comm-url-text { font-size: 11px; color: #aaa; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px; }
 
-.vote-box { display: flex; gap: 10px; font-size: 12px; color: #bbb; }
+.comm-user-tag { font-size: 11px; color: #999; }
+.comm-votes { display: flex; gap: 10px; font-size: 12px; color: #bbb; }
 .vote-btn { cursor: pointer; transition: 0.2s; }
 .vote-btn:hover { color: var(--primary-color); }
-.vote-btn.up:hover { color: #2ecc71; }
-.vote-btn.down:hover { color: #e74c3c; }
 
-/* 右侧用户名 */
-.comm-user-tag {
-    font-size: 11px;
-    color: #bbb;
-    background: #f5f5f5;
-    padding: 2px 6px;
-    border-radius: 4px;
-    white-space: nowrap;
-}
+/* 复制图标样式 */
+.copy-icon { font-size: 12px; color: #ccc; cursor: pointer; margin-left: 5px; }
+.copy-icon:hover { color: var(--primary-color); }
 
-/* 编辑弹窗：导入按钮样式 */
-.import-btn {
-    background: #f0f0f0 !important;
-    color: #666 !important;
-    margin-right: auto; /* 靠左对齐 */
+/* 弹窗内的导入按钮 */
+.btn-import {
+    background: #607d8b !important;
+    color: white !important;
+    margin-right: auto; /* 挤到左边 */
 }
 
     </style>
@@ -3159,19 +3154,24 @@ input:checked + .slider:before { transform: translateX(20px); }
                         </div>
                 </div>
                 
-                <div class="form-actions" style="justify-content: space-between; align-items: center; margin-top: 20px;">
-                    <button type="button" class="btn" id="deleteBookmarkBtn" style="background: #ff4757; color: white; display: none;">
-                        <i class="fas fa-trash-alt"></i> 删除此网站
-                    </button>
-<div style="display: flex; width: 100%; gap: 10px;">
-    <button class="import-btn" onclick="importCopiedSite()" title="导入社区复制的内容">
-        <i class="fas fa-file-import"></i> 导入复制
-                    
-                    <div style="display: flex; gap: 10px;">
-                        <button type="button" class="btn btn-secondary" id="cancelEditBtn">取消</button>
-                        <button type="submit" class="btn btn-primary" id="saveEditBtn">保存</button>
-                    </div>
-                </div>
+<div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; width: 100%;">
+    
+    <button onclick="deleteLink()" style="background: #ff4d4f; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 13px;">
+        <i class="fas fa-trash-alt"></i> 删除网站
+    </button>
+
+    <div style="display: flex; gap: 10px;">
+        <button onclick="importFromComm()" style="background: #607d8b; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 13px;">
+            <i class="fas fa-file-import"></i> 导入复制
+        </button>
+        <button onclick="closeEditModal()" style="background: #eee; color: #666; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 13px;">
+            取消
+        </button>
+        <button onclick="saveLink()" style="background: var(--primary-color); color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold;">
+            保存
+        </button>
+    </div>
+</div>
             </form>
         </div>
     </div>
@@ -7165,23 +7165,27 @@ function initMouseZone() {
                     const userName = item.owner && item.owner.attributes ? item.owner.attributes.username : '匿名';
                     const action = userActions[item.id]; // 获取当前用户的点赞状态
 
-                    return `
+return `
 <div class="comm-card">
-    <div class="comm-info">
-        <div class="comm-line-1">
-            <a href="${item.url}" target="_blank" class="comm-link">${item.name}</a>
-            <i class="far fa-copy copy-btn" title="复制网站信息" onclick="copySiteData('${item.name}', '${item.url}')"></i>
+    <div class="comm-col-left">
+        <div style="display: flex; align-items: center;">
+            <span class="comm-link" onclick="window.open('${item.url}', '_blank')">${item.title}</span>
+            <i class="far fa-copy copy-icon" title="复制并准备导入" 
+               onclick="event.stopPropagation(); copyForImport('${item.title}', '${item.url}')"></i>
         </div>
-        <div class="comm-line-2">
-            <span class="comm-url-text">${item.url}</span>
-            <div class="vote-box">
-                <i class="far fa-thumbs-up vote-btn up" onclick="handleVote('${item.id}', 'up')"></i>
-                <i class="far fa-thumbs-down vote-btn down" onclick="handleVote('${item.id}', 'down')"></i>
-            </div>
-        </div>
+        <div class="comm-url-text">${item.url.replace(/^https?:\/\//, '')}</div>
     </div>
-    <div class="comm-user-tag"><i class="far fa-user"></i> ${item.username || '匿名'}</div>
-</div>
+
+    <div class="comm-col-right">
+        <div class="comm-user-tag">@${userName}</div>
+        <div class="comm-votes">
+            <span class="vote-btn" onclick="event.stopPropagation(); handleVote('${item.id}', 'up')">
+                <i class="far fa-thumbs-up"></i> <small>${item.upVotes || 0}</small>
+            </span>
+            <span class="vote-btn" onclick="event.stopPropagation(); handleVote('${item.id}', 'down')">
+                <i class="far fa-thumbs-down"></i> <small>${item.downVotes || 0}</small>
+            </span>
+        </div>
                         </div>
                         
                         <div class="comm-actions" onclick="event.stopPropagation()">
@@ -7446,32 +7450,35 @@ function initLinkSortable() {
     });
 }
 
-// 1. 复制网站数据到本地缓存
-window.copySiteData = function(name, url) {
-    const data = JSON.stringify({ name, url });
-    localStorage.setItem('temp_copied_site', data);
+// 1. 社区点击复制：将数据存入“中转站”
+window.copyForImport = function(name, url) {
+    const data = { name, url };
+    localStorage.setItem('comm_copy_data', JSON.stringify(data));
     
-    // 同时复制链接到剪贴板
-    navigator.clipboard.writeText(url).then(() => {
-        showToast('已复制：' + name);
-    });
+    // 同时写入剪贴板（物理复制网址）
+    navigator.clipboard.writeText(url);
+    showToast('已复制网站信息，可在编辑框导入');
 };
 
-// 2. 导入已复制的网站到编辑框
-window.importCopiedSite = function() {
-    const rawData = localStorage.getItem('temp_copied_site');
-    if (!rawData) {
+// 2. 编辑弹窗点击导入：从“中转站”取出数据并填表
+window.importFromComm = function() {
+    const raw = localStorage.getItem('comm_copy_data');
+    if (!raw) {
         showToast('请先在社区点击复制按钮');
         return;
     }
-    const data = JSON.parse(rawData);
-    const titleInput = document.getElementById('editTitle');
-    const urlInput = document.getElementById('editUrl');
+    const data = JSON.parse(raw);
     
-    if (titleInput && urlInput) {
-        titleInput.value = data.name;
-        urlInput.value = data.url;
+    // 自动填写弹窗里的输入框
+    const nameInp = document.getElementById('editTitle'); 
+    const urlInp = document.getElementById('editUrl');
+    
+    if (nameInp && urlInp) {
+        nameInp.value = data.name;
+        urlInp.value = data.url;
         showToast('导入成功');
+    } else {
+        showToast('未找到输入框，请检查ID');
     }
 };
 
