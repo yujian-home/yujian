@@ -2902,10 +2902,37 @@ input:checked + .slider:before { transform: translateX(20px); }
     margin-right: auto; /* 挤到左边 */
 }
 
+/* 点赞点踩后的激活状态 */
+.vote-active {
+    color: var(--primary-color) !important; /* 变成主色调 */
+}
+.vote-active i {
+    font-weight: 900 !important; /* FontAwesome 实心图标 */
+}        
+
+/* 只有当 html 标签带有 .comm-auto-hide 类时，按钮才初始隐藏 */
+html.comm-auto-hide #triggerBtn { 
+    opacity: 0 !important; 
+    pointer-events: none !important; 
+    transform: translateX(50px) scale(0) !important; /* 向右缩进并缩小 */
+    transition: none !important; /* 初始加载时不准有动画，防止闪烁 */
+}        
+
     </style>
 </head>
 <body>
 <script>
+    (function() {
+        // 1. 立即读取自动隐藏设置
+        const isAuto = localStorage.getItem('cfg_commAutoHide') === 'true';
+        if (isAuto) {
+            // 2. 瞬间给最外层加上类名，配合上面的 CSS 达到零延迟隐藏
+            document.documentElement.classList.add('comm-auto-hide');
+        }
+    })();
+</script>
+<script>
+
         (function() {
             try {
                 var localData = localStorage.getItem('navPageData');
@@ -7020,30 +7047,28 @@ input:checked + .slider:before { transform: translateX(20px); }
 // 4. 页面初始化：同步开关状态 & 启动感应
         document.addEventListener('DOMContentLoaded', function() {
             
-// --- 修正后的初始化回显 (直接替换文件末尾的对应部分) ---
-    setTimeout(() => {
-        // 1. 社区按钮开关初始化
-        const commSwitch = document.getElementById('switchCommunity');
-        // 统一使用 cfg_commAutoHide 这个 Key
-        const commState = localStorage.getItem('cfg_commAutoHide'); 
-        if (commSwitch) {
-            // 【核心修正】：如果 commState 是 null（第一次打开），必须给 false，不能给 true
-            const isCommAutoHide = (commState === 'true'); 
-            commSwitch.checked = isCommAutoHide;
-            // 立即同步按钮的物理位置
-            if (typeof toggleCommunity === 'function') toggleCommunity(commSwitch);
-        }
+// --- 3. 统一回显与控制逻辑 ---
+setTimeout(() => {
+    const commSwitch = document.getElementById('switchCommunity');
+    const isAuto = localStorage.getItem('cfg_commAutoHide') === 'true';
 
-        // 2. 设置按钮开关初始化
-        const fabSwitch = document.getElementById('switchFab');
-        const fabState = localStorage.getItem('cfg_fabAutoHidden');
-        if (fabSwitch) {
-            // 如果是第一次打开（null），默认也是关闭 (false)
-            const isFabAutoHide = (fabState === 'true');
-            fabSwitch.checked = isFabAutoHide;
-            if (typeof toggleFabAutoHide === 'function') toggleFabAutoHide(fabSwitch);
+    if (commSwitch) {
+        commSwitch.checked = isAuto;
+        // 注意：这里绝对不要再调用 toggleCommunity()！
+        // 因为我们在页面顶部的脚本已经处理过显示/隐藏了。
+    }
+
+    // 更新按钮点击时的逻辑函数（搜索并替换你的 toggleCommunity 函数）
+    window.toggleCommunity = function(checkbox) {
+        const checked = checkbox.checked;
+        localStorage.setItem('cfg_commAutoHide', checked);
+        if (checked) {
+            document.documentElement.classList.add('comm-auto-hide');
+        } else {
+            document.documentElement.classList.remove('comm-auto-hide');
         }
-    }, 100);
+    };
+}, 50);
 
             // --- B. 启动鼠标分区感应 ---
             if (typeof initMouseZone === 'function') initMouseZone();
@@ -7140,120 +7165,137 @@ function initMouseZone() {
 async function loadCommList() {
     const list = document.getElementById('commList');
     if (!list) return;
-    list.innerHTML = '<div style="text-align:center;padding:20px"><i class="fas fa-spinner fa-spin"></i> 加载中...</div>';
+    list.innerHTML = '<div style="text-align:center;padding:20px"><i class="fas fa-spinner fa-spin"></i></div>';
     
     try {
         const query = new AV.Query('CommunitySite');
-        
-        // 筛选逻辑
-        if (commState.isMine) {
-            const currentUser = AV.User.current();
-            if(!currentUser) {
-                list.innerHTML = '<div style="text-align:center;padding:20px;opacity:0.5;">请先登录</div>';
-                return;
-            }
-            query.equalTo('owner', currentUser);
-        } else {
-            query.equalTo('category', commState.activeCat);
-            if(commState.activeTag) query.equalTo('tag', commState.activeTag);
-        }
-        
-        // --- 核心修改：按点赞数量排序 & 限制 99 个 ---
-        query.addDescending('upVotes'); // 点赞数最高排第一
-        query.addDescending('createdAt'); // 如果点赞数相同，按时间排
+        query.addDescending('upVotes'); // 点赞最高排第一
         query.limit(99); 
 
         const results = await query.find();
-
-        if(results.length === 0) { 
-            list.innerHTML = '<div style="text-align:center;padding:40px;opacity:0.5;">暂无资源</div>'; 
-            return; 
+        if(results.length === 0) {
+            list.innerHTML = '<div style="text-align:center;padding:40px;opacity:0.5;">暂无资源</div>';
+            return;
         }
 
-        const currentUserId = AV.User.current() ? AV.User.current().id : null;
+        const currentUser = AV.User.current();
+        let myVotes = [];
+
+        // 如果已登录，获取当前用户的所有投票记录
+        if (currentUser) {
+            const voteQuery = new AV.Query('SiteVote');
+            voteQuery.equalTo('user', currentUser);
+            myVotes = await voteQuery.find();
+        }
 
         list.innerHTML = results.map((item, index) => {
             const title = item.get('title') || '无标题';
             const url = item.get('url') || '#';
             const up = item.get('upVotes') || 0;
             const down = item.get('downVotes') || 0;
-            const isOwner = currentUserId && item.get('owner') && item.get('owner').id === currentUserId;
+            const isOwner = currentUser && item.get('owner') && item.get('owner').id === currentUser.id;
 
-            // 生成两位数序号 (01, 02, ..., 99)
+            // 检查当前用户对该网站的投票状态
+            const myVote = myVotes.find(v => v.get('siteId') === item.id);
+            const voteType = myVote ? myVote.get('type') : null;
+
             const serialNumber = String(index + 1).padStart(2, '0');
 
             return `
-            <div class="comm-card" style="display: flex; align-items: center; padding: 8px 12px; border-bottom: 1px solid #f5f5f5; background: #fff; margin-bottom: 6px; border-radius: 6px;">
-                <div style="font-family: monospace; font-size: 14px; color: #ccc; margin-right: 12px; font-weight: bold;">
-                    ${serialNumber}
-                </div>
+            <div class="comm-card" style="display: flex; align-items: center; padding: 10px 12px; border-bottom: 1px solid #f5f5f5; background: #fff; margin-bottom: 6px; border-radius: 8px;">
+                <div class="comm-index">${serialNumber}</div>
 
                 <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; overflow: hidden;">
                     <div style="display: flex; align-items: center; gap: 6px;">
-                        <span style="font-weight: 500; font-size: 13px; color: #333; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px;" 
-                              onclick="window.open('${url}', '_blank')">
-                            ${title}
-                        </span>
-                        <i class="far fa-copy" style="font-size: 11px; color: #bbb; cursor: pointer;" 
-                           onclick="event.stopPropagation(); window.copyForImport('${title}', '${url}')"></i>
+                        <span style="font-weight: 600; font-size: 14px; color: #333; cursor: pointer;" onclick="window.open('${url}', '_blank')">${title}</span>
+                        <i class="far fa-copy" style="font-size: 11px; color: #bbb; cursor: pointer;" onclick="event.stopPropagation(); window.copyForImport('${title}', '${url}')"></i>
                     </div>
-                    <div style="font-size: 10px; color: #bbb; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px;">
+                    <div style="font-size: 11px; color: #aaa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;">
                         ${url.replace(/^https?:\/\//, '')}
                     </div>
                 </div>
 
-                <div style="display: flex; align-items: center; gap: 8px; border-left: 1px solid #f0f0f0; padding-left: 10px; margin-left: 5px;">
-                    <div style="display: flex; gap: 8px; font-size: 12px; color: #ccc;">
-                        <span onclick="event.stopPropagation(); handleVote('${item.id}', 'up')" style="cursor:pointer; display: flex; align-items: center; gap: 2px;">
-                            <i class="far fa-thumbs-up"></i> <small>${up}</small>
+                <div style="display: flex; align-items: center; gap: 10px; border-left: 1px solid #f0f0f0; padding-left: 10px; margin-left: 5px;">
+                    <div style="display: flex; gap: 12px; font-size: 13px; color: #ccc;">
+                        <span onclick="event.stopPropagation(); window.handleVote('${item.id}', 'up')" 
+                              class="vote-btn ${voteType === 'up' ? 'vote-active' : ''}" style="cursor:pointer; display: flex; align-items: center; gap: 3px;">
+                            <i class="${voteType === 'up' ? 'fas' : 'far'} fa-thumbs-up"></i> <small>${up}</small>
                         </span>
-                        <span onclick="event.stopPropagation(); handleVote('${item.id}', 'down')" style="cursor:pointer; display: flex; align-items: center; gap: 2px;">
-                            <i class="far fa-thumbs-down"></i> <small>${down}</small>
+                        <span onclick="event.stopPropagation(); window.handleVote('${item.id}', 'down')" 
+                              class="vote-btn ${voteType === 'down' ? 'vote-active' : ''}" style="cursor:pointer; display: flex; align-items: center; gap: 3px;">
+                            <i class="${voteType === 'down' ? 'fas' : 'far'} fa-thumbs-down"></i> <small>${down}</small>
                         </span>
                     </div>
                     ${isOwner ? `<i class="fas fa-trash-alt" style="color:#ffb3b3; cursor:pointer; font-size:11px;" onclick="event.stopPropagation(); commDel('${item.id}')"></i>` : ''}
                 </div>
             </div>`;
         }).join('');
-    } catch(e) { 
-        console.error("加载失败:", e); 
-        list.innerHTML = '<div style="text-align:center;padding:20px;color:red;font-size:12px;">加载失败</div>'; 
+    } catch(e) {
+        console.error(e);
+        list.innerHTML = '<div style="text-align:center;padding:20px;color:red;">加载失败</div>';
     }
 }
 
         // 9. 【核心修改】互斥点赞/点踩逻辑
-        window.toggleAction = async function(id, type, btnElement) {
-            const currentAction = userActions[id];
-            let newLikes = parseInt(btnElement.parentElement.querySelector('.num').innerText);
-            const site = AV.Object.createWithoutData('CommunitySite', id);
-            
-            if (currentAction === type) {
-                // 取消
-                delete userActions[id];
-                if(type === 'like') { site.increment('likes', -1); newLikes--; }
+window.handleVote = async function(siteId, type) {
+    const currentUser = AV.User.current();
+    if (!currentUser) {
+        alert('请先登录再操作');
+        return;
+    }
+
+    // 防止多次点击重复触发
+    if (window.isVoting) return;
+    window.isVoting = true;
+
+    try {
+        const voteQuery = new AV.Query('SiteVote');
+        voteQuery.equalTo('user', currentUser);
+        voteQuery.equalTo('siteId', siteId);
+        let voteRecord = await voteQuery.first();
+
+        const site = AV.Object.createWithoutData('CommunitySite', siteId);
+        let upChange = 0;
+        let downChange = 0;
+
+        if (voteRecord) {
+            const oldType = voteRecord.get('type');
+            if (oldType === type) {
+                // 取消当前的投票
+                await voteRecord.destroy();
+                if (type === 'up') upChange = -1; else downChange = -1;
             } else {
-                // 切换
-                if(currentAction === 'like' && type === 'dislike') { site.increment('likes', -1); newLikes--; }
-                else if (type === 'like') { site.increment('likes', 1); newLikes++; }
-                userActions[id] = type;
+                // 切换投票类型 (如赞转踩)
+                voteRecord.set('type', type);
+                await voteRecord.save();
+                if (type === 'up') { upChange = 1; downChange = -1; }
+                else { upChange = -1; downChange = 1; }
             }
+        } else {
+            // 第一次投票
+            const VoteModel = AV.Object.extend('SiteVote');
+            const newVote = new VoteModel();
+            newVote.set('user', currentUser);
+            newVote.set('siteId', siteId);
+            newVote.set('type', type);
+            await newVote.save();
+            if (type === 'up') upChange = 1; else downChange = 1;
+        }
 
-            localStorage.setItem('comm_user_actions', JSON.stringify(userActions));
-            
-            // UI 更新
-            const parent = btnElement.parentElement;
-            const likeBtn = parent.children[0];
-            const dislikeBtn = parent.children[1];
-            
-            likeBtn.querySelector('.num').innerText = newLikes;
-            likeBtn.className = `comm-act-btn ${userActions[id]==='like'?'active-like':''}`;
-            likeBtn.querySelector('i').className = `${userActions[id]==='like'?'fas':'far'} fa-thumbs-up`;
-            
-            dislikeBtn.className = `comm-act-btn ${userActions[id]==='dislike'?'active-dislike':''}`;
-            dislikeBtn.querySelector('i').className = `${userActions[id]==='dislike'?'fas':'far'} fa-thumbs-down`;
+        // 原子增加/减少计数，防止数据错误
+        if (upChange !== 0) site.increment('upVotes', upChange);
+        if (downChange !== 0) site.increment('downVotes', downChange);
+        await site.save();
 
-            try { await site.save(); } catch(e) { console.error('Error', e); }
-        };
+        // 重新加载当前列表以更新 UI 状态
+        loadCommList(); 
+        
+    } catch (e) {
+        console.error('投票失败', e);
+    } finally {
+        window.isVoting = false;
+    }
+};
 
         // 10. 发布与删除
         window.openShareModal = () => {
