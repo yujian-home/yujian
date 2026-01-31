@@ -7127,90 +7127,81 @@ function initMouseZone() {
 
         window.closeCommDrawer = () => document.getElementById('commDrawer').classList.remove('active');
 
-        // 8. 【核心修改】加载列表 (包含卡片点击跳转、互斥点赞)
-        async function loadCommList() {
-            const list = document.getElementById('commList');
-            list.innerHTML = '<div style="text-align:center;padding:20px"><i class="fas fa-spinner fa-spin"></i> 加载中...</div>';
-            
-            try {
-                let displayData = [];
-                const query = new AV.Query('CommunitySite');
-                
-                if (commState.isMine) {
-                    query.equalTo('owner', AV.User.current());
-                } else {
-                    query.equalTo('category', commState.activeCat);
-                    if(commState.activeTag) query.equalTo('tag', commState.activeTag);
-                }
-                
-                const results = await query.limit(50).find();
-                displayData = results.map(item => ({...item.attributes, id: item.id, owner: item.get('owner'), createdAt: item.createdAt}));
-                
-                // 排序
-                displayData.sort((a, b) => commState.sort === 'new' ? b.createdAt - a.createdAt : b.likes - a.likes);
-
-                if(displayData.length === 0) { 
-                    list.innerHTML = `
-                        <div style="text-align:center;padding:40px;opacity:0.5;display:flex;flex-direction:column;align-items:center;gap:10px">
-                            <i class="fas fa-folder-open" style="font-size:30px"></i>
-                            <span>这里空空如也，快去发布第一个资源吧！</span>
-                        </div>`; 
-                    return; 
-                }
-
-                const currentUser = AV.User.current();
-                
-                list.innerHTML = data.map(item => {
-        // 安全取值：防止因为数据库字段缺失导致加载失败
-        const title = item.get('title') || '无标题';
-        const url = item.get('url') || '#';
-        const author = item.get('username') || item.get('author') || '匿名';
-        const up = item.get('upVotes') || 0;
-        const down = item.get('downVotes') || 0;userActions[item.id]; // 获取当前用户的点赞状态
-
-return `
-<div class="comm-card" style="display: flex; justify-content: space-between; align-items: stretch; padding: 12px; border-bottom: 1px solid #f0f0f0; background: #fff;">
-    <div style="display: flex; flex-direction: column; justify-content: center; gap: 4px; flex: 1; overflow: hidden;">
-        <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="font-weight: bold; font-size: 14px; color: #333; cursor: pointer;" onclick="window.open('${item.get('url')}', '_blank')">
-                ${item.get('title')}
-            </span>
-            <i class="far fa-copy" style="font-size: 12px; color: var(--primary-color); cursor: pointer;" 
-               onclick="event.stopPropagation(); window.copyForImport('${item.get('title')}', '${item.get('url')}')"></i>
-        </div>
-        <div style="font-size: 11px; color: #aaa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px;">
-            ${item.get('url').replace(/^https?:\/\//, '')}
-        </div>
-    </div>
-
-    <div style="display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end; min-width: 90px;">
-        <div style="font-size: 11px; color: #888; background: #f5f5f5; padding: 2px 6px; border-radius: 4px;">
-            @${item.get('username') || item.get('author') || '匿名用户'}
-        </div>
-        <div style="display: flex; gap: 12px; font-size: 13px; color: #ccc;">
-            <span onclick="event.stopPropagation(); handleVote('${item.id}', 'up')" style="cursor:pointer; display: flex; align-items: center; gap: 3px;">
-                <i class="far fa-thumbs-up"></i> <small>${item.get('upVotes') || 0}</small>
-            </span>
-            <span onclick="event.stopPropagation(); handleVote('${item.id}', 'down')" style="cursor:pointer; display: flex; align-items: center; gap: 3px;">
-                <i class="far fa-thumbs-down"></i> <small>${item.get('downVotes') || 0}</small>
-            </span>
-        </div>
-                        </div>
-                        
-                        <div class="comm-actions" onclick="event.stopPropagation()">
-                            <div class="comm-act-btn ${action==='like'?'active-like':''}" onclick="toggleAction('${item.id}', 'like', this)">
-                                <i class="${action==='like'?'fas':'far'} fa-thumbs-up"></i> 
-                                <span class="num">${item.likes||0}</span>
-                            </div>
-                            <div class="comm-act-btn ${action==='dislike'?'active-dislike':''}" onclick="toggleAction('${item.id}', 'dislike', this)">
-                                <i class="${action==='dislike'?'fas':'far'} fa-thumbs-down"></i>
-                            </div>
-                            ${isOwner ? `<div class="comm-act-btn" style="color:#aaa" onclick="commDel('${item.id}')"><i class="fas fa-trash-alt"></i></div>` : ''}
-                        </div>
-                    </div>`;
-                }).join('');
-            } catch(e) { console.error(e); list.innerHTML = '<div style="text-align:center;padding:20px">加载失败</div>'; }
+// --- 核心修复：加载社区列表 (去掉了用户名，确保稳定加载) ---
+async function loadCommList() {
+    const list = document.getElementById('commList');
+    if (!list) return;
+    list.innerHTML = '<div style="text-align:center;padding:20px"><i class="fas fa-spinner fa-spin"></i> 加载中...</div>';
+    
+    try {
+        const query = new AV.Query('CommunitySite');
+        
+        // 分类与标签筛选
+        if (commState.isMine) {
+            const currentUser = AV.User.current();
+            if(!currentUser) {
+                list.innerHTML = '<div style="text-align:center;padding:20px;opacity:0.5;">请先登录</div>';
+                return;
+            }
+            query.equalTo('owner', currentUser);
+        } else {
+            query.equalTo('category', commState.activeCat);
+            if(commState.activeTag) query.equalTo('tag', commState.activeTag);
         }
+        
+        // 排序逻辑
+        if (commState.sort === 'hot') query.addDescending('upVotes');
+        else query.addDescending('createdAt');
+
+        const results = await query.limit(50).find();
+
+        if(results.length === 0) { 
+            list.innerHTML = '<div style="text-align:center;padding:40px;opacity:0.5;">暂无资源，去发布一个吧！</div>'; 
+            return; 
+        }
+
+        const currentUserId = AV.User.current() ? AV.User.current().id : null;
+
+        list.innerHTML = results.map(item => {
+            const title = item.get('title') || '无标题';
+            const url = item.get('url') || '#';
+            const up = item.get('upVotes') || 0;
+            const down = item.get('downVotes') || 0;
+            const isOwner = currentUserId && item.get('owner') && item.get('owner').id === currentUserId;
+
+            return `
+            <div class="comm-card" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #f5f5f5; background: #fff; margin-bottom: 8px; border-radius: 8px;">
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 4px; overflow: hidden;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-weight: bold; font-size: 14px; color: #333; cursor: pointer;" onclick="window.open('${url}', '_blank')">
+                            ${title}
+                        </span>
+                        <i class="far fa-copy" style="font-size: 12px; color: var(--primary-color); cursor: pointer;" 
+                           onclick="event.stopPropagation(); window.copyForImport('${title}', '${url}')"></i>
+                    </div>
+                    <div style="font-size: 11px; color: #aaa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px;">
+                        ${url.replace(/^https?:\/\//, '')}
+                    </div>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 12px; min-width: 80px; justify-content: flex-end;">
+                    <div style="display: flex; gap: 10px; font-size: 13px; color: #ccc;">
+                        <span onclick="event.stopPropagation(); handleVote('${item.id}', 'up')" style="cursor:pointer; display: flex; align-items: center; gap: 3px;">
+                            <i class="far fa-thumbs-up"></i> <small>${up}</small>
+                        </span>
+                        <span onclick="event.stopPropagation(); handleVote('${item.id}', 'down')" style="cursor:pointer; display: flex; align-items: center; gap: 3px;">
+                            <i class="far fa-thumbs-down"></i> <small>${down}</small>
+                        </span>
+                    </div>
+                    ${isOwner ? `<i class="fas fa-trash-alt" style="color:#ff4d4f; cursor:pointer; font-size:12px;" onclick="event.stopPropagation(); commDel('${item.id}')"></i>` : ''}
+                </div>
+            </div>`;
+        }).join('');
+    } catch(e) { 
+        console.error("加载失败原因:", e); 
+        list.innerHTML = '<div style="text-align:center;padding:20px;color:red;font-size:12px;">加载失败，请刷新重试</div>'; 
+    }
+}
 
         // 9. 【核心修改】互斥点赞/点踩逻辑
         window.toggleAction = async function(id, type, btnElement) {
