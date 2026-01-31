@@ -2727,15 +2727,15 @@ input:checked + .slider:before { transform: translateX(20px); }
 
         .comm-list { flex: 1; overflow-y: auto; padding: 20px; background: #fff; }
         
-        .comm-card { 
-            background: #f8f9fa; 
-            padding: 15px; 
-            border-radius: 10px; 
-            margin-bottom: 12px; 
-            display: flex; align-items: center; 
-            border: 1px solid #eee; 
-            transition: 0.3s; 
-        }
+.comm-card { 
+    background: #f8f9fa; 
+    padding: 8px 12px;     /* 核心：减小内边距，卡片会变扁平、变窄 */
+    border-radius: 8px;    /* 稍微减小圆角，更精致 */
+    margin: 0 5px 10px 5px; /* 增加左右外边距，让卡片左右看起来“缩窄”了 */
+    display: flex; align-items: center; 
+    border: 1px solid #eee; 
+    transition: 0.3s; 
+}
         .comm-card:hover { transform: translateX(-5px); background: #f0f0f0; }
         
         .comm-info { flex: 1; overflow: hidden; }
