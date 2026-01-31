@@ -2553,13 +2553,13 @@ input:checked + .slider:before { transform: translateX(20px); }
     pointer-events: auto !important; /* 容器必须能接收鼠标事件 */
 }
 
-/* --- 2. 设置按钮基础样式 --- */
+/* --- 1. 设置按钮基础样式 --- */
 #settingsBtn {
     width: 45px;
     height: 45px;
     border-radius: 50%;
     border: none;
-    background: var(--card-bg); /* 使用你定义的变量 */
+    background: var(--card-bg);
     color: var(--primary-color);
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     cursor: pointer;
@@ -2569,26 +2569,20 @@ input:checked + .slider:before { transform: translateX(20px); }
     font-size: 20px;
     transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     z-index: 2001;
+    opacity: 1; /* 默认显示 */
+    transform: scale(1);
+    pointer-events: auto;
 }
 
-/* --- 3. 自动隐藏模式逻辑 (重点修复) --- */
-
-/* 当开启了自动隐藏，默认让按钮变小、透明、且不可点击 */
-body.fab-hidden-mode #settingsBtn:not(.menu-open) {
-    opacity: 0;
-    transform: scale(0.4) rotate(-90deg);
-    pointer-events: none; /* 隐身时点击穿透，不挡后面的东西 */
+/* --- 2. 核心修复：自动隐藏模式的样式 --- */
+/* 当按钮带有 .auto-hide 类名时，将其缩小并隐藏 */
+#settingsBtn.auto-hide {
+    opacity: 0 !important;
+    transform: scale(0.4) rotate(-90deg) !important;
+    pointer-events: none !important; /* 隐藏时不能被点到 */
 }
 
-/* 关键：鼠标移入感应容器时，按钮立刻恢复 */
-.settings-fab-wrapper:hover #settingsBtn {
-    opacity: 1 !important;
-    transform: scale(1) rotate(0deg) !important;
-    pointer-events: auto !important; /* 显形时必须恢复点击功能 */
-    box-shadow: 0 6px 20px rgba(0, 255, 255, 0.3); /* 增加一点发光感 */
-}
-
-/* 菜单打开时也要保持按钮显示 */
+/* 菜单打开时，强行保持显示（优先级最高） */
 #settingsBtn.menu-open {
     opacity: 1 !important;
     transform: scale(1) !important;
@@ -2769,32 +2763,42 @@ body.fab-hidden-mode #settingsBtn:not(.menu-open) {
         .comm-fab i { color: #fff !important; }
         .comm-fab:hover { transform: scale(1.1) rotate(90deg); }
 
-        /* --- 6. 侧边触发器与光效 (保持原样) --- */
-        .edge-light { 
-            position: fixed; top: 0; right: 0; bottom: 0;
-            width: 12px; height: 100%; z-index: 2147483646; 
-            background: linear-gradient(to bottom, transparent 0%, rgba(0, 255, 255, 1) 50%, transparent 100%);
-            box-shadow: -4px 0 30px rgba(0, 255, 255, 0.6);
-            opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
-            display: none; 
-        }
         
-        .trigger-btn { 
-            position: fixed; top: 40%; right: -100px; transform: translateY(-50%); 
-            width: 40px; height: 300px; padding-right: 0px; 
-            background: rgba(230, 250, 255, 0.3); backdrop-filter: blur(10px);
-            border: 1px solid rgba(0, 0, 0, 0.05); border-right: none !important; 
-            border-radius: 16px 0 0 16px;
-            color: #000000 !important; text-shadow: none !important;
-            display: none; align-items: center; justify-content: center; 
-            cursor: pointer; box-shadow: -5px 0 20px rgba(0, 0, 0, 0.05);
-            transition: right 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
-            z-index: 2147483647; font-size: 28px;
-        }
-        .trigger-btn.show { right: -1px; }
-        .trigger-btn:hover { right: -1px; background: rgba(255, 255, 255, 0.8); }
+/* 社区按钮 - 基础样式 */
+.trigger-btn { 
+    position: fixed; 
+    top: 40%; 
+    right: 0;           /* 默认：常驻在屏幕边缘 */
+    transform: translateY(-50%); 
+    width: 40px; 
+    height: 300px; 
+    background: rgba(230, 250, 255, 0.3); 
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(0, 0, 0, 0.05); 
+    border-right: none !important; 
+    border-radius: 16px 0 0 16px;
+    color: #000000 !important; 
+    display: flex !important; /* 强制显示，防止被旧JS隐藏 */
+    align-items: center; 
+    justify-content: center; 
+    cursor: pointer; 
+    box-shadow: -5px 0 20px rgba(0, 0, 0, 0.05);
+    z-index: 2147483647; 
+    font-size: 28px;
+    transition: right 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s; 
+}
 
-        @media (max-width: 768px) { .comm-drawer { width: 90%; right: -95%; } }
+/* 状态 A：开启“自动隐藏”模式 (缩进) */
+.trigger-btn.auto-hide-mode {
+    right: -35px; /* 缩进到只留一根线 */
+    opacity: 0.4;
+}
+
+/* 状态 B：感应模式下，鼠标靠近时“滑出” */
+.trigger-btn.auto-hide-mode.show {
+    right: 0;
+    opacity: 1;
+}
 
 /* ================= 修复分类和弹窗样式 ================= */
         
@@ -2913,8 +2917,6 @@ body.fab-hidden-mode #settingsBtn:not(.menu-open) {
         </div>
     </div>
 
-<div class="edge-light" id="edgeLight"></div>
-
 <div class="trigger-btn" id="triggerBtn">
     <i class="fas fa-chevron-left"></i>
 </div>
@@ -3002,7 +3004,7 @@ body.fab-hidden-mode #settingsBtn:not(.menu-open) {
         <div style="height: 1px; background: rgba(0,0,0,0.1); margin: 8px 0;"></div>
 
         <div class="menu-switch-item">
-            <span><i class="fas fa-compass" style="width:20px; text-align:center;"></i> 侧边社区</span>
+            <span><i class="fas fa-compass" style="width:20px; text-align:center;"></i> 隐藏社区按钮</span>
             <label class="switch">
                 <input type="checkbox" id="switchCommunity" onchange="toggleCommunity(this)">
                 <span class="slider"></span>
@@ -3010,7 +3012,7 @@ body.fab-hidden-mode #settingsBtn:not(.menu-open) {
         </div>
 
         <div class="menu-switch-item">
-            <span><i class="fas fa-ghost" style="width:20px; text-align:center;"></i> 自动隐藏按钮</span>
+            <span><i class="fas fa-ghost" style="width:20px; text-align:center;"></i> 隐藏设置按钮</span>
             <label class="switch">
                 <input type="checkbox" id="switchFab" onchange="toggleFabAutoHide(this)">
                 <span class="slider"></span>
@@ -6805,7 +6807,7 @@ body.fab-hidden-mode #settingsBtn:not(.menu-open) {
 (function() {
     // 1. 配置状态
     let appConfig = {
-        communityEnabled: true,
+        communityEnabled: false,
         fabAutoHidden: false
     };
 
@@ -6944,123 +6946,74 @@ body.fab-hidden-mode #settingsBtn:not(.menu-open) {
         // 本地存储点赞状态 (模拟数据库)
         let userActions = JSON.parse(localStorage.getItem('comm_user_actions')) || {};
 
-        // 2. 开关逻辑：点击立即生效 (侧边社区)
-        window.toggleCommunity = function(checkbox) {
-            const isChecked = checkbox.checked;
-            localStorage.setItem('cfg_communityEnabled', isChecked);
-            
-            const btn = document.getElementById('triggerBtn');
-            const light = document.getElementById('edgeLight');
-            const drawer = document.getElementById('commDrawer');
 
-            if (isChecked) {
-                if(btn) btn.style.display = 'flex';
-                if(light) light.style.display = 'block';
-            } else {
-                if(btn) btn.style.display = 'none';
-                if(light) light.style.display = 'none';
-                if(drawer) drawer.classList.remove('active');
-            }
-        };
-
-        // 3. 开关逻辑：点击立即生效 (自动隐藏按钮)
-        window.toggleFabAutoHide = function(checkbox) {
-            const isChecked = checkbox.checked;
-            localStorage.setItem('cfg_fabAutoHidden', isChecked);
-            
-            const settingsBtn = document.getElementById('settingsBtn');
-            const body = document.body;
-
-            if (isChecked) {
-                if(settingsBtn) settingsBtn.classList.add('auto-hide');
-                body.classList.add('fab-hidden-mode');
-            } else {
-                if(settingsBtn) settingsBtn.classList.remove('auto-hide');
-                body.classList.remove('fab-hidden-mode');
-            }
-        };
-
-        // 4. 页面初始化：同步开关状态 & 启动感应
+// 4. 页面初始化：同步开关状态 & 启动感应
         document.addEventListener('DOMContentLoaded', function() {
-            // 同步开关状态
-            setTimeout(() => {
-                const commSwitch = document.getElementById('switchCommunity');
-                const commState = localStorage.getItem('cfg_communityEnabled');
-                if (commSwitch) {
-                    commSwitch.checked = commState === null ? true : (commState === 'true');
-                    toggleCommunity(commSwitch);
-                }
-
-                const fabSwitch = document.getElementById('switchFab');
-                const fabState = localStorage.getItem('cfg_fabAutoHidden');
-                if (fabSwitch) {
-                    fabSwitch.checked = fabState === null ? false : (fabState === 'true');
-                    toggleFabAutoHide(fabSwitch);
-                }
-            }, 100);
-
-            // 启动鼠标分区感应
-            initMouseZone();
             
-            // 如果有初始化函数则执行
-            if(typeof initCommunity === 'function') initCommunity(); 
+// --- 修正后的初始化回显 (直接替换文件末尾的对应部分) ---
+    setTimeout(() => {
+        // 1. 社区按钮开关初始化
+        const commSwitch = document.getElementById('switchCommunity');
+        // 统一使用 cfg_commAutoHide 这个 Key
+        const commState = localStorage.getItem('cfg_commAutoHide'); 
+        if (commSwitch) {
+            // 【核心修正】：如果 commState 是 null（第一次打开），必须给 false，不能给 true
+            const isCommAutoHide = (commState === 'true'); 
+            commSwitch.checked = isCommAutoHide;
+            // 立即同步按钮的物理位置
+            if (typeof toggleCommunity === 'function') toggleCommunity(commSwitch);
+        }
+
+        // 2. 设置按钮开关初始化
+        const fabSwitch = document.getElementById('switchFab');
+        const fabState = localStorage.getItem('cfg_fabAutoHidden');
+        if (fabSwitch) {
+            // 如果是第一次打开（null），默认也是关闭 (false)
+            const isFabAutoHide = (fabState === 'true');
+            fabSwitch.checked = isFabAutoHide;
+            if (typeof toggleFabAutoHide === 'function') toggleFabAutoHide(fabSwitch);
+        }
+    }, 100);
+
+            // --- B. 启动鼠标分区感应 ---
+            if (typeof initMouseZone === 'function') initMouseZone();
+            
+            // --- C. 如果有其他初始化函数则执行 ---
+            if (typeof initCommunity === 'function') initCommunity(); 
         });
 
-        // 5. 核心：鼠标分区感应逻辑 (75% vs 25%)
-        function initMouseZone() {
-            document.addEventListener('mousemove', (e) => {
-                const btn = document.getElementById('triggerBtn');
-                const drawer = document.getElementById('commDrawer');
-                const light = document.getElementById('edgeLight');
-                const settingsBtn = document.getElementById('settingsBtn');
-                
-                // 仅在侧边栏关闭时检测
-                if(drawer && !drawer.classList.contains('active')) {
-                    const dist = window.innerWidth - e.clientX; 
-                    const mouseY = e.clientY; 
-                    const splitLine = window.innerHeight * 0.75; 
-                    
-                    // 光效逻辑
-                    if (light && btn && btn.style.display !== 'none') {
-                        if(dist < 150) light.style.opacity = 1 - (dist/150);
-                        else light.style.opacity = 0;
-                    }
+function initMouseZone() {
+    document.addEventListener('mousemove', (e) => {
+        const btn = document.getElementById('triggerBtn');
+        const settingsBtn = document.getElementById('settingsBtn');
+        
+        const dist = window.innerWidth - e.clientX; // 鼠标距离右边缘的距离
+        const mouseY = e.clientY;
+        const screenHeight = window.innerHeight;
 
-                    // 按钮触发逻辑
-                    if (mouseY < splitLine) {
-                        // === 上 75%：社区区域 ===
-                        if (btn && btn.style.display !== 'none') {
-                            if(dist < 60) btn.classList.add('show');
-                            else if(dist > 200) btn.classList.remove('show');
-                        }
-                        const fabState = localStorage.getItem('cfg_fabAutoHidden') === 'true';
-                        if (fabState && settingsBtn) settingsBtn.classList.add('auto-hide');
-                    } else {
-                        // === 下 25%：设置区域 ===
-                        if(btn) btn.classList.remove('show'); 
-                        const fabState = localStorage.getItem('cfg_fabAutoHidden') === 'true';
-                        if (fabState && settingsBtn) {
-                            if(dist < 80) settingsBtn.classList.remove('auto-hide');
-                            else settingsBtn.classList.add('auto-hide');
-                        }
-                    }
-                }
-            });
-
-            // 绑定触发按钮点击事件
-            const trigger = document.getElementById('triggerBtn');
-            if(trigger) {
-                // 防止重复绑定，先克隆替换
-                const newTrigger = trigger.cloneNode(true);
-                trigger.parentNode.replaceChild(newTrigger, trigger);
-                newTrigger.onclick = (e) => {
-                    e.stopPropagation();
-                    document.getElementById('commDrawer').classList.add('active');
-                    newTrigger.classList.remove('show');
-                    renderCommUI();
-                };
+        // 社区按钮感应：仅当开启了“自动隐藏”时生效
+        const isCommAutoHide = localStorage.getItem('cfg_commAutoHide') === 'true';
+        if (isCommAutoHide && btn) {
+            if (mouseY < screenHeight * 0.75) { // 屏幕上半部分
+                if (dist < 60) btn.classList.add('show'); // 靠近滑出
+                else if (dist > 150) btn.classList.remove('show'); // 远离缩回
+            } else {
+                btn.classList.remove('show'); // 鼠标移到底部时缩回
             }
         }
+
+        // 设置按钮感应
+        const isFabAutoHide = localStorage.getItem('cfg_fabAutoHidden') === 'true';
+        if (isFabAutoHide && settingsBtn) {
+            if (mouseY >= screenHeight * 0.75) {
+                if (dist < 80) settingsBtn.classList.remove('auto-hide');
+                else settingsBtn.classList.add('auto-hide');
+            } else {
+                settingsBtn.classList.add('auto-hide');
+            }
+        }
+    });
+}
 
         // 6. UI渲染 (分类与标签)
         function renderCommUI() {
@@ -7249,39 +7202,41 @@ body.fab-hidden-mode #settingsBtn:not(.menu-open) {
 
 // ================= [JS] 功能整合完整版 =================
 
-// 1. 侧边社区开关：点击立即生效
+// --- 唯一保留的社区按钮开关逻辑 ---
 window.toggleCommunity = function(checkbox) {
-    const isChecked = checkbox.checked;
-    localStorage.setItem('cfg_communityEnabled', isChecked);
+    // 1. 此时：勾选 = 开启自动隐藏
+    const isAutoHide = checkbox.checked; 
+    
+    // 2. 统一变量名，确保和 initMouseZone 对应
+    localStorage.setItem('cfg_commAutoHide', isAutoHide);
     
     const btn = document.getElementById('triggerBtn');
-    const light = document.getElementById('edgeLight');
-    const drawer = document.getElementById('commDrawer');
-
-    if (isChecked) {
-        if(btn) { btn.style.display = 'flex'; }
-        if(light) { light.style.display = 'block'; }
-    } else {
-        if(btn) btn.style.display = 'none';
-        if(light) light.style.display = 'none';
-        if(drawer) drawer.classList.remove('active');
+    if (btn) {
+        // 彻底废除 display: none，改用类名切换
+        if (isAutoHide) {
+            // 模式 A：自动隐藏 (按钮向右缩进)
+            btn.classList.add('auto-hide-mode');
+        } else {
+            // 模式 B：常驻显示 (按钮回到原位)
+            btn.classList.remove('auto-hide-mode', 'show');
+        }
     }
 };
 
-// 2. 自动隐藏按钮开关：点击立即生效
+// --- 3. [新增] 设置按钮开关：控制常驻与自动隐藏 ---
 window.toggleFabAutoHide = function(checkbox) {
-    const isChecked = checkbox.checked;
-    localStorage.setItem('cfg_fabAutoHidden', isChecked);
+    const isAutoHide = checkbox.checked; // 勾选 = 开启自动隐藏
+    localStorage.setItem('cfg_fabAutoHidden', isAutoHide);
     
     const settingsBtn = document.getElementById('settingsBtn');
-    const body = document.body;
-
-    if (isChecked) {
-        if(settingsBtn) settingsBtn.classList.add('auto-hide');
-        body.classList.add('fab-hidden-mode');
-    } else {
-        if(settingsBtn) settingsBtn.classList.remove('auto-hide');
-        body.classList.remove('fab-hidden-mode');
+    if (settingsBtn) {
+        if (isAutoHide) {
+            // 模式 A：开启隐藏模式 (按钮缩回，等待感应)
+            settingsBtn.classList.add('auto-hide');
+        } else {
+            // 模式 B：常驻模式 (核心修复：关闭开关时立即移除类名，强制现身)
+            settingsBtn.classList.remove('auto-hide');
+        }
     }
 };
 
@@ -7294,7 +7249,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const commSwitch = document.getElementById('switchCommunity');
         const commState = localStorage.getItem('cfg_communityEnabled');
         if (commSwitch) {
-            const isOpen = commState === null ? true : (commState === 'true');
+            const isOpen = commState === null ? false : (commState === 'false');
             commSwitch.checked = isOpen;
             toggleCommunity(commSwitch); // 初始化执行一次
         }
@@ -7313,47 +7268,37 @@ document.addEventListener('DOMContentLoaded', function() {
     initMouseZone();
 });
 
-// 4. 核心感应逻辑
 function initMouseZone() {
     document.addEventListener('mousemove', (e) => {
         const btn = document.getElementById('triggerBtn');
-        const drawer = document.getElementById('commDrawer');
-        const light = document.getElementById('edgeLight');
         const settingsBtn = document.getElementById('settingsBtn');
         
-        // 仅在侧边栏关闭时检测
-        if(drawer && !drawer.classList.contains('active')) {
-            const dist = window.innerWidth - e.clientX; 
-            const mouseY = e.clientY; 
-            const splitLine = window.innerHeight * 0.75; 
-            
-            // 光效逻辑 (如果社区开启，且靠右150px内，光就亮，不受上下影响)
-            if (light && btn && btn.style.display !== 'none') {
-                if(dist < 150) light.style.opacity = 1 - (dist/150);
-                else light.style.opacity = 0;
-            }
+        const dist = window.innerWidth - e.clientX; // 鼠标到右边缘的距离
+        const mouseY = e.clientY;
+        const screenHeight = window.innerHeight;
 
-            // 按钮触发逻辑
-            if (mouseY < splitLine) {
-                // === 上 75%：社区区域 ===
-                if (btn && btn.style.display !== 'none') {
-                    if(dist < 60) btn.classList.add('show');
-                    else if(dist > 200) btn.classList.remove('show');
-                }
-                // 此时抑制设置按钮
-                const fabState = localStorage.getItem('cfg_fabAutoHidden') === 'true';
-                if (fabState && settingsBtn) settingsBtn.classList.add('auto-hide');
-                
+        // --- 1. 社区按钮感应 (屏幕上方 75% 区域) ---
+        const isCommAutoHide = localStorage.getItem('cfg_commAutoHide') === 'true';
+        if (isCommAutoHide && btn) {
+            if (mouseY < screenHeight * 0.75) {
+                // 鼠标靠近右边缘 60px 以内，按钮滑出
+                if (dist < 60) btn.classList.add('show');
+                // 鼠标离开 150px 以外，按钮缩回
+                else if (dist > 150) btn.classList.remove('show');
             } else {
-                // === 下 25%：设置区域 ===
-                if(btn) btn.classList.remove('show'); // 社区按钮缩回
-                
-                // 唤醒设置按钮
-                const fabState = localStorage.getItem('cfg_fabAutoHidden') === 'true';
-                if (fabState && settingsBtn) {
-                    if(dist < 80) settingsBtn.classList.remove('auto-hide');
-                    else settingsBtn.classList.add('auto-hide');
-                }
+                // 鼠标移到了下半部分，确保社区按钮缩回
+                btn.classList.remove('show');
+            }
+        }
+
+        // --- 2. 设置按钮感应 (屏幕下方 25% 区域) ---
+        const isFabAutoHide = localStorage.getItem('cfg_fabAutoHidden') === 'true';
+        if (isFabAutoHide && settingsBtn) {
+            if (mouseY >= screenHeight * 0.75) {
+                if (dist < 80) settingsBtn.classList.remove('auto-hide');
+                else settingsBtn.classList.add('auto-hide');
+            } else {
+                settingsBtn.classList.add('auto-hide');
             }
         }
     });
