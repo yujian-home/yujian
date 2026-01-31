@@ -2855,11 +2855,12 @@ input:checked + .slider:before { transform: translateX(20px); }
 /* 序号样式 */
 .comm-index {
     font-family: "Monaco", monospace;
-    font-size: 14px;
-    font-weight: bold;
-    color: #ddd;
+    font-size: 20px;
+    font-weight: 800;
+    color: #c5a438;
     margin-right: 12px;
-    width: 20px; /* 保证两位数序号对齐 */
+    width: 26px;
+    text-align: center;
 }
 
 /* 左侧容器：名称+网站 */
@@ -3165,9 +3166,9 @@ input:checked + .slider:before { transform: translateX(20px); }
                 
 <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; width: 100%;">
     
-    <button onclick="deleteLink()" style="background: #ff4d4f; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 13px;">
-        <i class="fas fa-trash-alt"></i> 删除网站
-    </button>
+<button id="deleteBookmarkBtn" type="button" onclick="deleteLink()" style="background: #ff4d4f; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 13px;">
+    <i class="fas fa-trash-alt"></i> 删除网站
+</button>
 
     <div style="display: flex; gap: 10px;">
         <button onclick="importFromComm()" style="background: #607d8b; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 13px;">
@@ -7331,25 +7332,27 @@ window.toggleFabAutoHide = function(checkbox) {
 document.addEventListener('DOMContentLoaded', function() {
     
     // --- A. 同步开关状态 ---
-    setTimeout(() => {
-        // 社区开关回显
-        const commSwitch = document.getElementById('switchCommunity');
-        const commState = localStorage.getItem('cfg_communityEnabled');
-        if (commSwitch) {
-            const isOpen = commState === null ? false : (commState === 'false');
-            commSwitch.checked = isOpen;
-            toggleCommunity(commSwitch); // 初始化执行一次
-        }
+setTimeout(() => {
+    // 1. 社区按钮“自动隐藏”开关回显
+    const commSwitch = document.getElementById('switchCommunity');
+    const commState = localStorage.getItem('cfg_commAutoHide'); 
+    if (commSwitch) {
+        // 如果之前存的是 'true'，就打钩；否则不打钩
+        const isAuto = (commState === 'true'); 
+        commSwitch.checked = isAuto;
+        // 立即执行一次，确保页面刷新后按钮就在正确位置
+        if (typeof toggleCommunity === 'function') toggleCommunity(commSwitch);
+    }
 
-        // 自动隐藏开关回显
-        const fabSwitch = document.getElementById('switchFab');
-        const fabState = localStorage.getItem('cfg_fabAutoHidden');
-        if (fabSwitch) {
-            const isOpen = fabState === null ? true : (fabState === 'true');
-            fabSwitch.checked = isOpen;
-            toggleFabAutoHide(fabSwitch); // 初始化执行一次
-        }
-    }, 100);
+    // 2. 设置按钮“自动隐藏”开关回显
+    const fabSwitch = document.getElementById('switchFab');
+    const fabState = localStorage.getItem('cfg_fabAutoHidden');
+    if (fabSwitch) {
+        const isFabAuto = (fabState === 'true');
+        fabSwitch.checked = isFabAuto;
+        if (typeof toggleFabAutoHide === 'function') toggleFabAutoHide(fabSwitch);
+    }
+}, 150); // 稍微延迟，确保 DOM 完全就绪
 
     // --- B. 启动鼠标分区感应 (75% vs 25%) ---
     initMouseZone();
@@ -7539,6 +7542,37 @@ async function handleVote(id, type) {
         if (typeof showToast === 'function') showToast('操作失败，请重试');
     }
 }
+
+// --- 修复主页网站删除功能 ---
+window.deleteLink = function() {
+    // 1. 获取当前正在编辑的网站 ID (从你的全局 state 中读取)
+    const bookmarkId = state.editingBookmarkId;
+    
+    if (!bookmarkId) {
+        alert("未找到网站信息，无法删除");
+        return;
+    }
+
+    // 2. 找到这个网站的名称用于确认提醒
+    const bookmark = state.bookmarks.find(b => b.id === bookmarkId);
+    const bookmarkName = bookmark ? bookmark.name : "该网站";
+
+    // 3. 二次确认
+    if (confirm(`确定要删除 "${bookmarkName}" 吗？`)) {
+        // 4. 从数据中过滤掉这个 ID
+        state.bookmarks = state.bookmarks.filter(b => b.id !== bookmarkId);
+        
+        // 5. 保存并刷新主页显示
+        saveData();       // 保存到本地/云端
+        renderBookmarks(); // 重新渲染网页上的图标
+        
+        // 6. 关闭弹窗
+        const modal = document.getElementById('editBookmarkModal');
+        if (modal) modal.style.display = 'none';
+        
+        if (typeof showToast === 'function') showToast("网站已删除");
+    }
+};
         
         initApp();
     </script>
