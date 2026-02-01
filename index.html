@@ -7215,16 +7215,38 @@ function initMouseZone() {
 async function loadCommList() {
     const list = document.getElementById('commList');
     if (!list) return;
-    list.innerHTML = '<div style="text-align:center;padding:20px;opacity:0.6;"><i class="fas fa-spinner fa-spin"></i></div>';
+    list.innerHTML = '<div style="text-align:center;padding:20px;opacity:0.6;"><i class="fas fa-spinner fa-spin"></i> 加载中...</div>';
     
     try {
         const query = new AV.Query('CommunitySite');
-        query.addDescending('upVotes'); // 依然保持点赞高的在前
-        query.limit(99); 
+        
+        // --- 核心修改：增加分类/标签过滤条件 ---
+        if (commState.isMine) {
+            // “我的”模式：只看自己发布的
+            query.equalTo('owner', AV.User.current());
+        } else {
+            // 社区分类过滤：如果不是“综合”，则只查对应的分类
+            if (commState.activeCat && commState.activeCat !== '综合') {
+                query.equalTo('category', commState.activeCat);
+            }
+            // 标签过滤：如果有选中具体的标签（如“搜索”），进一步过滤
+            if (commState.activeTag) {
+                query.equalTo('tag', commState.activeTag);
+            }
+        }
 
+        // 排序逻辑
+        if (commState.sort === 'hot') {
+            query.addDescending('upVotes'); // 最多点赞
+        } else {
+            query.addDescending('createdAt'); // 最新发布
+        }
+        
+        query.limit(99); 
         const results = await query.find();
-        if(results.length === 0) {
-            list.innerHTML = '<div style="text-align:center;padding:40px;opacity:0.5;">暂无资源</div>';
+
+        if (results.length === 0) {
+            list.innerHTML = '<div style="text-align:center;padding:40px;opacity:0.5;">该分类下暂无资源</div>';
             return;
         }
 
@@ -7235,63 +7257,56 @@ async function loadCommList() {
                 const vQuery = new AV.Query('SiteVote');
                 vQuery.equalTo('user', currentUser);
                 myVotes = await vQuery.find();
-            } catch (e) { console.warn("SiteVote未就绪"); }
+            } catch (e) { console.warn("未发现投票记录表"); }
         }
 
-        // --- 核心逻辑：按分类分组 ---
-        const groups = {};
-        results.forEach(item => {
-            const cat = item.get('category') || '未分类';
-            if (!groups[cat]) groups[cat] = [];
-            groups[cat].push(item);
-        });
+        // --- 渲染逻辑：只显示列表，不再显示“综合”等分类标题 ---
+        list.innerHTML = results.map((item, index) => {
+            const title = item.get('title') || '无标题';
+            const url = item.get('url') || '#';
+            const up = item.get('upVotes') || 0;
+            const down = item.get('downVotes') || 0;
+            const isOwner = currentUser && item.get('owner') && item.get('owner').id === currentUser.id;
 
-        // --- 渲染分组 HTML ---
-        let html = '';
-        for (const catName in groups) {
-            // 添加分类标题
-            html += `<div class="comm-cat-header">${catName}</div>`;
-            
-            // 渲染该分类下的网站
-            html += groups[catName].map((item, index) => {
-                const up = item.get('upVotes') || 0;
-                const down = item.get('downVotes') || 0;
-                const myVote = myVotes.find(v => v.get('siteId') === item.id);
-                const voteType = myVote ? myVote.get('type') : null;
-                const url = item.get('url') || '#';
-                const title = item.get('title') || '无标题';
-                const isOwner = currentUser && item.get('owner') && item.get('owner').id === currentUser.id;
-                const serial = String(index + 1).padStart(2, '0');
+            const myVote = myVotes.find(v => v.get('siteId') === item.id);
+            const voteType = myVote ? myVote.get('type') : null;
+            const serialNumber = String(index + 1).padStart(2, '0');
 
-                return `
-                <div class="comm-card" style="display: flex; align-items: center; padding: 10px 8px 10px 12px; border-bottom: 1px solid #f5f5f5; background: #fff; margin-bottom: 6px; border-radius: 8px;">
-                    <div class="comm-index" style="margin-right: 10px; width: 28px;">${serial}</div>
-                    <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; overflow: hidden; margin-right: 6px;">
-                        <div style="display: flex; align-items: center; gap: 6px;">
-                            <span class="comm-card-title" onclick="window.open('${url}', '_blank')">${title}</span>
-                            <i class="far fa-copy" style="font-size: 11px; color: #bbb; cursor: pointer;" onclick="event.stopPropagation(); window.copyForImport('${title}', '${url}')"></i>
-                        </div>
-                        <div class="comm-card-url">${url.replace(/^https?:\/\//, '')}</div>
+            return `
+            <div class="comm-card" style="display: flex; align-items: center; padding: 10px 12px; border-bottom: 1px solid #f5f5f5; background: #fff; margin-bottom: 6px; border-radius: 8px;">
+                <div class="comm-index">${serialNumber}</div>
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; overflow: hidden; margin-right: 10px;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span class="comm-card-title" onclick="window.open('${url}', '_blank')">${title}</span>
+                        <i class="far fa-copy" style="font-size: 11px; color: #bbb; cursor: pointer;" 
+                           onclick="event.stopPropagation(); window.copyForImport('${title}', '${url}')"></i>
                     </div>
-                    <div style="display: flex; align-items: center; border-left: 1px solid #f0f0f0; padding-left: 8px;">
-                        <div style="display: flex; gap: 2px; align-items: center;">
-                            <span onclick="event.stopPropagation(); window.handleVote('${item.id}', 'up')" class="vote-btn ${voteType === 'up' ? 'vote-active' : ''}">
-                                <i class="${voteType === 'up' ? 'fas' : 'far'} fa-thumbs-up"></i> <small>${up}</small>
-                            </span>
-                            <span onclick="event.stopPropagation(); window.handleVote('${item.id}', 'down')" class="vote-btn ${voteType === 'down' ? 'vote-active' : ''}">
-                                <i class="${voteType === 'down' ? 'fas' : 'far'} fa-thumbs-down"></i> <small>${down}</small>
-                            </span>
-                        </div>
-                        <div style="width: 28px; display: flex; justify-content: center; align-items: center; margin-left: 4px;">
-                            ${isOwner ? `<i class="fas fa-trash-alt comm-del-icon" style="font-size: 13px;" onclick="event.stopPropagation(); commDel('${item.id}')"></i>` : ''}
-                        </div>
+                    <div class="comm-card-url">${url.replace(/^https?:\/\//, '')}</div>
+                </div>
+                <div style="display: flex; align-items: center; border-left: 1px solid #f0f0f0; padding-left: 10px; margin-left: 5px;">
+                    <div style="display: flex; gap: 15px; align-items: center;">
+                        <span onclick="event.stopPropagation(); window.handleVote('${item.id}', 'up')" 
+                              class="vote-btn ${voteType === 'up' ? 'vote-active' : ''}">
+                            <i class="${voteType === 'up' ? 'fas' : 'far'} fa-thumbs-up"></i> 
+                            <small>${up}</small>
+                        </span>
+                        <span onclick="event.stopPropagation(); window.handleVote('${item.id}', 'down')" 
+                              class="vote-btn ${voteType === 'down' ? 'vote-active' : ''}">
+                            <i class="${voteType === 'down' ? 'fas' : 'far'} fa-thumbs-down"></i> 
+                            <small>${down}</small>
+                        </span>
                     </div>
-                </div>`;
-            }).join('');
-        }
-        list.innerHTML = html;
+                    <div style="width: 30px; display: flex; justify-content: center; align-items: center; margin-left: 5px;">
+                        ${isOwner ? `<i class="fas fa-trash-alt comm-del-icon" onclick="event.stopPropagation(); commDel('${item.id}')"></i>` : ''}
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
 
-    } catch(e) { console.error(e); list.innerHTML = '<div style="text-align:center;padding:20px;">加载失败</div>'; }
+    } catch(e) {
+        console.error("加载失败:", e);
+        list.innerHTML = '<div style="text-align:center;padding:20px;color:red;">数据读取异常</div>';
+    }
 }
 
 window.handleVote = async function(siteId, type) {
