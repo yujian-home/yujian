@@ -2852,23 +2852,28 @@ input:checked + .slider:before { transform: translateX(20px); }
     transition: all 0.2s;
 }
 
-/* 社区序号：保持大字号和加粗，但颜色还原为标准灰色 */
+/* 社区序号：保持大字号加粗，但固定为灰色 */
 .comm-index {
     font-family: 'Monaco', monospace;
     font-size: 18px;
     font-weight: 800;
-    color: #ccc; /* 这里改成了标准的浅灰色 */
+    color: #bbb; /* 固定灰色，不随金色变 */
     margin-right: 12px;
     width: 28px;
     text-align: center;
 }
 
-/* 投票激活状态：仅图标变实心并变色 */
+/* 投票激活状态：图标变实心并变色 */
 .vote-active {
     color: var(--primary-color) !important; 
 }
 .vote-active i {
-    font-weight: 900 !important; /* 实心图标 */
+    font-weight: 900 !important; /* FontAwesome 实心 */
+}
+
+.vote-btn {
+    cursor: pointer;
+    transition: 0.2s;
 }
 
 /* 左侧容器：名称+网站 */
@@ -7173,7 +7178,7 @@ function initMouseZone() {
 async function loadCommList() {
     const list = document.getElementById('commList');
     if (!list) return;
-    list.innerHTML = '<div style="text-align:center;padding:20px"><i class="fas fa-spinner fa-spin"></i></div>';
+    list.innerHTML = '<div style="text-align:center;padding:20px;opacity:0.6;"><i class="fas fa-spinner fa-spin"></i></div>';
     
     try {
         const query = new AV.Query('CommunitySite');
@@ -7189,11 +7194,15 @@ async function loadCommList() {
         const currentUser = AV.User.current();
         let myVotes = [];
 
-        // 如果已登录，获取当前用户的所有投票记录
+        // --- 核心保护：防止 SiteVote 表不存在导致加载失败 ---
         if (currentUser) {
-            const voteQuery = new AV.Query('SiteVote');
-            voteQuery.equalTo('user', currentUser);
-            myVotes = await voteQuery.find();
+            try {
+                const voteQuery = new AV.Query('SiteVote');
+                voteQuery.equalTo('user', currentUser);
+                myVotes = await voteQuery.find();
+            } catch (voteError) {
+                console.warn("提示：SiteVote 表尚未创建或无权限，已跳过投票状态加载");
+            }
         }
 
         list.innerHTML = results.map((item, index) => {
@@ -7203,10 +7212,9 @@ async function loadCommList() {
             const down = item.get('downVotes') || 0;
             const isOwner = currentUser && item.get('owner') && item.get('owner').id === currentUser.id;
 
-            // 检查当前用户对该网站的投票状态
+            // 检查当前用户投票状态
             const myVote = myVotes.find(v => v.get('siteId') === item.id);
             const voteType = myVote ? myVote.get('type') : null;
-
             const serialNumber = String(index + 1).padStart(2, '0');
 
             return `
@@ -7216,9 +7224,10 @@ async function loadCommList() {
                 <div style="flex: 1; display: flex; flex-direction: column; gap: 2px; overflow: hidden;">
                     <div style="display: flex; align-items: center; gap: 6px;">
                         <span style="font-weight: 600; font-size: 14px; color: #333; cursor: pointer;" onclick="window.open('${url}', '_blank')">${title}</span>
-                        <i class="far fa-copy" style="font-size: 11px; color: #bbb; cursor: pointer;" onclick="event.stopPropagation(); window.copyForImport('${title}', '${url}')"></i>
+                        <i class="far fa-copy" style="font-size: 11px; color: #bbb; cursor: pointer;" 
+                           onclick="event.stopPropagation(); window.copyForImport('${title}', '${url}')"></i>
                     </div>
-                    <div style="font-size: 11px; color: #aaa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;">
+                    <div style="font-size: 10px; color: #aaa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px;">
                         ${url.replace(/^https?:\/\//, '')}
                     </div>
                 </div>
@@ -7226,11 +7235,11 @@ async function loadCommList() {
                 <div style="display: flex; align-items: center; gap: 10px; border-left: 1px solid #f0f0f0; padding-left: 10px; margin-left: 5px;">
                     <div style="display: flex; gap: 12px; font-size: 13px; color: #ccc;">
                         <span onclick="event.stopPropagation(); window.handleVote('${item.id}', 'up')" 
-                              class="vote-btn ${voteType === 'up' ? 'vote-active' : ''}" style="cursor:pointer; display: flex; align-items: center; gap: 3px;">
+                              class="vote-btn ${voteType === 'up' ? 'vote-active' : ''}" style="display: flex; align-items: center; gap: 3px;">
                             <i class="${voteType === 'up' ? 'fas' : 'far'} fa-thumbs-up"></i> <small>${up}</small>
                         </span>
                         <span onclick="event.stopPropagation(); window.handleVote('${item.id}', 'down')" 
-                              class="vote-btn ${voteType === 'down' ? 'vote-active' : ''}" style="cursor:pointer; display: flex; align-items: center; gap: 3px;">
+                              class="vote-btn ${voteType === 'down' ? 'vote-active' : ''}" style="display: flex; align-items: center; gap: 3px;">
                             <i class="${voteType === 'down' ? 'fas' : 'far'} fa-thumbs-down"></i> <small>${down}</small>
                         </span>
                     </div>
@@ -7239,8 +7248,8 @@ async function loadCommList() {
             </div>`;
         }).join('');
     } catch(e) {
-        console.error(e);
-        list.innerHTML = '<div style="text-align:center;padding:20px;color:red;">加载失败</div>';
+        console.error("加载失败原因:", e);
+        list.innerHTML = '<div style="text-align:center;padding:20px;color:red;font-size:12px;">数据读取异常，请重试</div>';
     }
 }
 
@@ -7252,7 +7261,6 @@ window.handleVote = async function(siteId, type) {
         return;
     }
 
-    // 防止多次点击重复触发
     if (window.isVoting) return;
     window.isVoting = true;
 
@@ -7263,47 +7271,47 @@ window.handleVote = async function(siteId, type) {
         let voteRecord = await voteQuery.first();
 
         const site = AV.Object.createWithoutData('CommunitySite', siteId);
-        let upChange = 0;
-        let downChange = 0;
+        let upAdd = 0, downAdd = 0;
 
         if (voteRecord) {
             const oldType = voteRecord.get('type');
             if (oldType === type) {
-                // 取消当前的投票
+                // 取消投票
                 await voteRecord.destroy();
-                if (type === 'up') upChange = -1; else downChange = -1;
+                if (type === 'up') upAdd = -1; else downAdd = -1;
             } else {
-                // 切换投票类型 (如赞转踩)
+                // 切换 (赞转踩)
                 voteRecord.set('type', type);
                 await voteRecord.save();
-                if (type === 'up') { upChange = 1; downChange = -1; }
-                else { upChange = -1; downChange = 1; }
+                if (type === 'up') { upAdd = 1; downAdd = -1; }
+                else { upAdd = -1; downAdd = 1; }
             }
         } else {
-            // 第一次投票
+            // 新增投票
             const VoteModel = AV.Object.extend('SiteVote');
             const newVote = new VoteModel();
             newVote.set('user', currentUser);
             newVote.set('siteId', siteId);
             newVote.set('type', type);
             await newVote.save();
-            if (type === 'up') upChange = 1; else downChange = 1;
+            if (type === 'up') upAdd = 1; else downAdd = 1;
         }
 
-        // 原子增加/减少计数，防止数据错误
-        if (upChange !== 0) site.increment('upVotes', upChange);
-        if (downChange !== 0) site.increment('downVotes', downChange);
+        // 使用原子增加，解决“多次点击数字乱跳”问题
+        if (upAdd !== 0) site.increment('upVotes', upAdd);
+        if (downAdd !== 0) site.increment('downVotes', downAdd);
         await site.save();
 
-        // 重新加载当前列表以更新 UI 状态
+        // 刷新列表显示最新状态
         loadCommList(); 
         
     } catch (e) {
-        console.error('投票失败', e);
+        console.error('点赞失败', e);
+        alert('操作失败，请重试');
     } finally {
         window.isVoting = false;
     }
-};
+}
 
         // 10. 发布与删除
         window.openShareModal = () => {
