@@ -2857,7 +2857,7 @@ input:checked + .slider:before { transform: translateX(20px); }
     font-family: 'Monaco', monospace;
     font-size: 18px;
     font-weight: 800;
-    color: #bbb; /* 固定灰色，不随金色变 */
+    color: #c5a438; 
     margin-right: 12px;
     width: 28px;
     text-align: center;
@@ -7254,64 +7254,79 @@ async function loadCommList() {
 }
 
         // 9. 【核心修改】互斥点赞/点踩逻辑
+// --- 核心点赞逻辑修复版 ---
 window.handleVote = async function(siteId, type) {
     const currentUser = AV.User.current();
     if (!currentUser) {
-        alert('请先登录再操作');
+        if(typeof showToast === 'function') showToast('请先登录再操作');
+        else alert('请先登录');
         return;
     }
 
-    if (window.isVoting) return;
+    if (window.isVoting) return; // 防止狂点导致崩溃
     window.isVoting = true;
 
     try {
-        const voteQuery = new AV.Query('SiteVote');
-        voteQuery.equalTo('user', currentUser);
-        voteQuery.equalTo('siteId', siteId);
-        let voteRecord = await voteQuery.first();
+        // 【关键句在这里】定义 SiteVote 类
+        // 如果你之前找不到这句，现在它就在这里，每次点击都会被正确调用
+        const SiteVote = AV.Object.extend('SiteVote'); 
+        
+        // 1. 查找当前用户是否已经给这个网站投过票
+        const vQuery = new AV.Query('SiteVote');
+        vQuery.equalTo('user', currentUser);
+        vQuery.equalTo('siteId', siteId);
+        let record = await vQuery.first();
 
         const site = AV.Object.createWithoutData('CommunitySite', siteId);
-        let upAdd = 0, downAdd = 0;
+        let upAdd = 0;
+        let downAdd = 0;
 
-        if (voteRecord) {
-            const oldType = voteRecord.get('type');
+        if (record) {
+            const oldType = record.get('type');
             if (oldType === type) {
-                // 取消投票
-                await voteRecord.destroy();
+                // 如果点的是同一个按钮 -> 取消投票并删除记录
+                await record.destroy();
                 if (type === 'up') upAdd = -1; else downAdd = -1;
             } else {
-                // 切换 (赞转踩)
-                voteRecord.set('type', type);
-                await voteRecord.save();
+                // 如果点的是另一个按钮 -> 切换 (比如赞改踩)
+                record.set('type', type);
+                await record.save();
                 if (type === 'up') { upAdd = 1; downAdd = -1; }
                 else { upAdd = -1; downAdd = 1; }
             }
         } else {
-            // 新增投票
-            const VoteModel = AV.Object.extend('SiteVote');
-            const newVote = new VoteModel();
+            // 第一次投票 -> 创建新记录
+            const newVote = new SiteVote();
             newVote.set('user', currentUser);
             newVote.set('siteId', siteId);
             newVote.set('type', type);
+            
+            // 设置权限：只有本人能改自己的投票记录
+            const acl = new AV.ACL();
+            acl.setPublicReadAccess(true);
+            acl.setWriteAccess(currentUser, true);
+            newVote.setACL(acl);
+            
             await newVote.save();
             if (type === 'up') upAdd = 1; else downAdd = 1;
         }
 
-        // 使用原子增加，解决“多次点击数字乱跳”问题
+        // 2. 将计算好的点赞/点踩数同步到 CommunitySite 表
         if (upAdd !== 0) site.increment('upVotes', upAdd);
         if (downAdd !== 0) site.increment('downVotes', downAdd);
         await site.save();
 
-        // 刷新列表显示最新状态
-        loadCommList(); 
+        // 3. 刷新列表显示
+        loadCommList();
         
     } catch (e) {
-        console.error('点赞失败', e);
-        alert('操作失败，请重试');
+        console.error('投票操作失败:', e);
+        // 如果报错“Class not found”，说明你还没在 LeanCloud 后台手动建 SiteVote 表
+        if(e.code === 101) alert('后台缺少 SiteVote 表，请先手动创建');
     } finally {
         window.isVoting = false;
     }
-}
+};
 
         // 10. 发布与删除
         window.openShareModal = () => {
