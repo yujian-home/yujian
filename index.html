@@ -2852,15 +2852,23 @@ input:checked + .slider:before { transform: translateX(20px); }
     transition: all 0.2s;
 }
 
-/* 序号样式 */
+/* 社区序号：保持大字号和加粗，但颜色还原为标准灰色 */
 .comm-index {
-    font-family: "Monaco", monospace;
-    font-size: 20px;
+    font-family: 'Monaco', monospace;
+    font-size: 18px;
     font-weight: 800;
-    color: #c5a438;
+    color: #ccc; /* 这里改成了标准的浅灰色 */
     margin-right: 12px;
-    width: 26px;
+    width: 28px;
     text-align: center;
+}
+
+/* 投票激活状态：仅图标变实心并变色 */
+.vote-active {
+    color: var(--primary-color) !important; 
+}
+.vote-active i {
+    font-weight: 900 !important; /* 实心图标 */
 }
 
 /* 左侧容器：名称+网站 */
