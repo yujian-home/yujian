@@ -2852,7 +2852,7 @@ input:checked + .slider:before { transform: translateX(20px); }
     transition: all 0.2s;
 }
 
-/* 1. 序号：强制金色、大字号、加粗 */
+/* 1. 强制序号变金（覆盖任何黑色设置） */
 .comm-index {
     font-family: 'Monaco', monospace !important;
     font-size: 22px !important; 
@@ -2861,7 +2861,7 @@ input:checked + .slider:before { transform: translateX(20px); }
     margin-right: 15px !important;
     width: 32px !important;
     text-align: center !important;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.1) !important;
 }
 
 /* 2. 投票按钮：整体加大，增加点击感 */
@@ -2875,12 +2875,12 @@ input:checked + .slider:before { transform: translateX(20px); }
 }
 
 .vote-btn i {
-    font-size: 22px !important; /* 图标加大到 22px */
+    font-size: 14px !important; /* 图标加大到 22px */
     color: #ccc;
 }
 
 .vote-btn small {
-    font-size: 16px !important; /* 数字加大 */
+    font-size: 12px !important; /* 数字加大 */
     font-weight: bold !important;
     color: #ccc;
 }
