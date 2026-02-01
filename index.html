@@ -2871,7 +2871,7 @@ input:checked + .slider:before { transform: translateX(20px); }
     flex-direction: column;    /* 核心：图标在上，数字在下 */
     align-items: center;       /* 水平居中 */
     justify-content: center;
-    width: 45px;               /* 固定宽度：保证 1位数和3位数占位一样大 */
+    width: 32px;               /* 固定宽度：保证 1位数和3位数占位一样大 */
     gap: 1px;                  /* 图标和数字之间的紧凑间距 */
     transition: all 0.2s ease;
 }
@@ -7266,9 +7266,9 @@ return `
         <div class="comm-card-url">${url.replace(/^https?:\/\//, '')}</div>
     </div>
 
-    <div style="display: flex; align-items: center; border-left: 1px solid #eee; padding-left: 15px;">
+    <div style="display: flex; align-items: center; border-left: 1px solid #eee; padding-left: 8px;">
         
-        <div style="display: flex; gap: 10px; align-items: center;">
+        <div style="display: flex; gap: 5px; align-items: center;">
             <span onclick="event.stopPropagation(); window.handleVote('${item.id}', 'up')" 
                   class="vote-btn ${voteType === 'up' ? 'vote-active' : ''}">
                 <i class="${voteType === 'up' ? 'fas' : 'far'} fa-thumbs-up"></i> 
@@ -7281,7 +7281,7 @@ return `
             </span>
         </div>
         
-        <div style="width: 40px; display: flex; justify-content: center; align-items: center; margin-left: 10px;">
+        <div style="width: 20px; display: flex; justify-content: center; align-items: center; margin-left: 5px;">
             ${isOwner ? `
                 <i class="fas fa-trash-alt comm-del-icon" 
                    onclick="event.stopPropagation(); commDel('${item.id}')">
