@@ -2519,12 +2519,18 @@ input:checked + .slider:before {
 
 /* ================= 智能设置 CSS (粘贴到 style 标签最后) ================= */
 
-/* 1. iOS 风格开关样式 */
+/* 1. iOS 风格开关样式 - 精简对齐版 */
 .menu-switch-item {
     display: flex; justify-content: space-between; align-items: center;
-    padding: 12px 15px; font-size: 14px; color: #333 !important;
+    /* 左右改成 15px 就对齐了 */
+    padding: 15px 10px; 
+    font-size: 14px; color: #333 !important;
+    cursor: pointer;
 }
-.switch { position: relative; display: inline-block; width: 40px; height: 20px; }
+/* 鼠标指上去变色，和按钮统一 */
+.menu-switch-item:hover { background-color: rgba(0,0,0,0.05); }
+
+.switch { position: relative; display: inline-block; width: 38px; height: 20px; }
 .switch input { opacity: 0; width: 0; height: 0; }
 .slider {
     position: absolute; cursor: pointer;
@@ -2533,11 +2539,12 @@ input:checked + .slider:before {
 }
 .slider:before {
     position: absolute; content: "";
-    height: 16px; width: 16px; left: 2px; bottom: 2px;
+    height: 14px; width: 14px; left: 3px; bottom: 3px;
     background-color: white; transition: .4s; border-radius: 50%;
 }
-input:checked + .slider { background-color: var(--primary-color); }
-input:checked + .slider:before { transform: translateX(20px); }
+/* 开启后也固定为深色，不调用主题色 */
+input:checked + .slider { background-color: #333 !important; }
+input:checked + .slider:before { transform: translateX(18px); }
 
 /* --- 1. 设置按钮感应容器 --- */
 .settings-fab-wrapper {
@@ -4518,7 +4525,7 @@ html.comm-auto-hide #triggerBtn {
             const originalText = applyBtn.innerText;
             
             // 1. 按钮显示加载状态
-            applyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在缓存资源...';
+            applyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在切换皮肤...';
             applyBtn.disabled = true;
 
             try {
