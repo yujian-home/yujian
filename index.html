@@ -2952,13 +2952,23 @@ input:checked + .slider:before { transform: translateX(18px); }
     font-weight: 900 !important; /* FontAwesome 实心图标 */
 }        
 
-/* 只有当 html 标签带有 .comm-auto-hide 类时，按钮才初始隐藏 */
+/* 1. 当开启“隐藏社区按钮”时，默认将按钮缩进到边缘外（留出4px感应） */
 html.comm-auto-hide #triggerBtn { 
-    opacity: 0 !important; 
-    pointer-events: none !important; 
-    transform: translateX(50px) scale(0) !important; /* 向右缩进并缩小 */
-    transition: none !important; /* 初始加载时不准有动画，防止闪烁 */
-} 
+    right: -39px !important; /* 缩进 36px，外面只露出一根细线 */
+    opacity: 0.4;            /* 隐藏时半透明，防止视觉干扰 */
+    transform: translateY(-50%) scale(1) !important; /* 保持缩放正常 */
+}
+
+/* 2. 当鼠标靠近边缘，JS 加上了 .show 类名时，平滑弹回原位 */
+html.comm-auto-hide #triggerBtn.show { 
+    right: 0 !important;
+    opacity: 1 !important;
+}
+
+/* 3. 强化过渡动画：解决“闪烁”问题的核心是平滑的动画，而不是 transition: none */
+#triggerBtn {
+    transition: right 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s !important;
+}
 
 /* 社区网站标题：固定 9 个汉字长度并截断 */
 .comm-card-title {
